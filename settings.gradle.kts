@@ -1,1 +1,1 @@
-rootProject.name = "timeline"
+rootProject.name = "dailyfeed-timeline"

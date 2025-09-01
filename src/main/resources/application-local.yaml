@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: dailyfeed-timeline
+  ## database connection
+  datasource:
+    hikari:
+      jdbc-url: jdbc:mysql://127.0.0.1:23306/dailyfeed?characterEncoding=UTF-8&serverTimezone=UTC&rewriteBatchedStatements=true
+      driver-class-name: com.mysql.jdbc.Driver
+      username: root
+      password: hitEnter!!!
+      schema: dailyfeed
+  ## jpa
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+  ## devtools
+  devtools:
+    restart:
+      enabled: false
+  ## paging 관련
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+        default-page-size: 20
+
+springdoc:
+  packages-to-scan: click.dailyfeed.timeline.domain
+  default-consumes-media-type: application/json;charset=UTF-8
+  default-produces-media-type: application/json;charset=UTF-8
+  cache:
+    disabled: true    # 캐시 사용 여부
+  api-docs:
+    path: /api-docs/json
+    groups:
+      enabled: true
+  swagger-ui:
+    enabled: true               # Swagger enable 할지 결정
+    path: /demo-ui.html         # Swagger 접근 경로
+    tags-sorter: alpha          # 알파벳 순 Tag 정렬, method: HTTP Method 순 정렬
+    operations-sorter: alpha    # 알파벳 순 Tag 정렬, method: HTTP Method 순 정렬
+
+logging:
+  level:
+    click.dailyfeed.timeline.client: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+dailyfeed:
+  timeline:
+    comment:
+      max-depth: 2    # 댓글 최대 깊이
+      page-size: 20   # 기본 페이지 크기
