@@ -25,6 +25,7 @@ spring:
       pageable:
         max-page-size: 100
         default-page-size: 20
+  ## kafka
   kafka:
     bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
     consumer:
@@ -33,7 +34,7 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "com.example.dto"
+        spring.json.trusted.packages: "click.dailyfeed.code.domain.content,click.dailyfeed.code.domain.member"
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -59,9 +60,37 @@ logging:
     click.dailyfeed.timeline.client: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.kafka: INFO
 
 dailyfeed:
   timeline:
     comment:
       max-depth: 2    # 댓글 최대 깊이
       page-size: 20   # 기본 페이지 크기
+  kafka:
+    topic:
+      post-activity:
+        prefix: post-activity-
+        prefix-date-format: yyyyMMdd
+        retention-ms: 604800000 # 7일
+    consumers:
+      # Post Activity Consumer
+      post-activity:
+        group-id: post-activity-consumer-group
+        concurrency: 3
+      # User Activity Consumer 설정
+      user-activity:
+        group-id: user-activity-consumer-group
+        concurrency: 2
+#        topics:
+#          - user-login-activity
+#          - user-logout-activity
+#          - user-profile-updated
+      # Notification Consumer 설정
+      notification:
+        group-id: notification-consumer-group
+        concurrency: 1
+#        topics:
+#          - email-notification
+#          - push-notification
+#          - sms-notification
