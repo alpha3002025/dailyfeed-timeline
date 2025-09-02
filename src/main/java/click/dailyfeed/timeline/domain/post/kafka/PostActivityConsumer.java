@@ -19,7 +19,7 @@ public class PostActivityConsumer {
 
     @KafkaListener(
             topics = "post-activity-*",
-            groupId = "post-activity-consumer-group-2",
+            groupId = "post-activity-consumer-group-1",
             containerFactory = "postActivityConsumerFactory"
     )
     public void consumeAllPostActivityEvents(
