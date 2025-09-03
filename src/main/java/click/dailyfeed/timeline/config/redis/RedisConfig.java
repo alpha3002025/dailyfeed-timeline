@@ -30,17 +30,17 @@ public class RedisConfig {
         return new LettuceConnectionFactory(configuration);
     }
 
-    @Bean
-    RedisTemplate<String, Object> polymorphicRedisTemplate(
-            RedisConnectionFactory redisConnectionFactory,
-            @Qualifier("polymorphicObjectMapper") ObjectMapper polymorphicObjectMapper
-    ){
-        RedisTemplate<String, Object> polymorphicRedisTemplate = new RedisTemplate<>();
-        polymorphicRedisTemplate.setConnectionFactory(redisConnectionFactory);
-        polymorphicRedisTemplate.setKeySerializer(new StringRedisSerializer());
-        polymorphicRedisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer(polymorphicObjectMapper));
-        return polymorphicRedisTemplate;
-    }
+//    @Bean
+//    RedisTemplate<String, Object> polymorphicRedisTemplate(
+//            RedisConnectionFactory redisConnectionFactory,
+//            @Qualifier("polymorphicObjectMapper") ObjectMapper polymorphicObjectMapper
+//    ){
+//        RedisTemplate<String, Object> polymorphicRedisTemplate = new RedisTemplate<>();
+//        polymorphicRedisTemplate.setConnectionFactory(redisConnectionFactory);
+//        polymorphicRedisTemplate.setKeySerializer(new StringRedisSerializer());
+//        polymorphicRedisTemplate.setValueSerializer(new GenericJackson2JsonRedisSerializer(polymorphicObjectMapper));
+//        return polymorphicRedisTemplate;
+//    }
 
     @Bean
     RedisTemplate<String, PostDto.PostActivityEvent>  postActivityEventRedisTemplate(

@@ -9,23 +9,21 @@ import com.mongodb.client.MongoClients;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.MongoTransactionManager;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
 import org.springframework.data.mongodb.core.convert.*;
 import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
-import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
-import org.springframework.transaction.annotation.EnableTransactionManagement;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.Date;
 
-@EnableTransactionManagement
 @Configuration
-@EnableMongoRepositories(
-        basePackages = "click.dailyfeed.timeline.domain.**.repository.mongo",
-        mongoTemplateRef = "mongoTemplate"
-)
 public class MongoConfig {
     @Value("${spring.data.mongodb.uri}")
     private String mongoUri;
@@ -73,24 +71,42 @@ public class MongoConfig {
         return new MongoCustomConversions(
                 Arrays.asList(
                         new BigDecimalToDecimal128Converter(),
-                        new Decimal128ToBigDecimalConverter()
+                        new Decimal128ToBigDecimalConverter(),
+                        new LocalDateTimeToDateConverter(),
+                        new DateToLocalDateTimeConverter()
                 )
         );
     }
 
     @Bean
-    public MongoMappingContext mongoMappingContext() {
-        return new MongoMappingContext();
-    }
-
-    @Bean
     public MappingMongoConverter mappingMongoConverter(
             MongoDatabaseFactory databaseFactory,
-            MongoMappingContext mongoMappingContext
+            MongoMappingContext mongoMappingContext,
+            MongoCustomConversions mongoCustomConversions
     ){
         DbRefResolver dbRefResolver = new DefaultDbRefResolver(databaseFactory);
         MappingMongoConverter converter = new MappingMongoConverter(dbRefResolver, mongoMappingContext);
         converter.setTypeMapper(new DefaultMongoTypeMapper(null));
+        converter.setCustomConversions(mongoCustomConversions);
+        converter.afterPropertiesSet();
         return converter;
+    }
+
+    private static class LocalDateTimeToDateConverter
+            implements Converter<LocalDateTime, Date> {
+
+        @Override
+        public Date convert(LocalDateTime source) {
+            return Timestamp.valueOf(source.plusHours(9));
+        }
+    }
+
+    private static class DateToLocalDateTimeConverter
+            implements Converter<Date, LocalDateTime> {
+
+        @Override
+        public LocalDateTime convert(Date source) {
+            return source.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime().minusHours(9);
+        }
     }
 }

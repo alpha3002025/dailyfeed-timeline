@@ -1,26 +1,37 @@
 package click.dailyfeed.timeline.domain.post.kafka;
 
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
+import click.dailyfeed.timeline.domain.post.document.PostActivity;
+import click.dailyfeed.timeline.domain.post.mapper.TimelinePostMapper;
+import click.dailyfeed.timeline.domain.post.redis.PostActivityRedisService;
+import click.dailyfeed.timeline.domain.post.repository.mongo.PostActivityMongoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Slf4j
 @RequiredArgsConstructor
 @Component
 public class PostActivityConsumer {
+//    private final PostActivityMongoRepository postActivityMongoRepository;
+    private final PostActivityRedisService postActivityRedisService;
+    private final TimelinePostMapper timelinePostMapper;
 
     @KafkaListener(
-            topics = "post-activity-*",
+            topics = "post-activity-.*",
             groupId = "post-activity-consumer-group-1",
-            containerFactory = "postActivityConsumerFactory"
+            containerFactory = "postActivityKafkaListenerContainerFactory"
     )
     public void consumeAllPostActivityEvents(
             @Payload PostDto.PostActivityEvent event,
@@ -60,54 +71,56 @@ public class PostActivityConsumer {
         LocalDate today = LocalDate.now();
 
         if (eventDate.equals(today)) {
-//            processCurrentDateEvent(event);
-            processEvent(event);
+            cachingPostActivityEvent(event);
         } else if (eventDate.isBefore(today)) {
             if(eventDate.isAfter(today.minusDays(2))) {
-                // 이틀전 이벤트 까지만 처리 (
-                processEvent(event);
+                cachingPostActivityEvent(event);
             }
             else{
-//                processHistoricalEvent(event);
+                // 접미사가 yyyyMMdd 형식이 아닌 다른 형식의 토픽일 경우 이곳에서 처리 (운영을 위한 특정 용도)
             }
         } else {
-            log.info("미래에서 오셨군요");
+            log.info("미래에서 오셨군요, 10년 뒤에 삼성전자 얼마에요?");
         }
     }
 
-    private void processEvent(PostDto.PostActivityEvent event) {
-        // 레디스 luascript 기반 put
+    private void cachingPostActivityEvent(PostDto.PostActivityEvent event) {
+        // 1) Message read
+        if (event == null) {
+            return;
+        }
+
+        // 2) cache put
+        postActivityRedisService.rPushEvent(event);
     }
 
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    @Scheduled(fixedRate = 1000)
+    public void insertMany(){
+        // 1초에 한번씩 동작
+        while(true){
+            List<PostDto.PostActivityEvent> eventList = postActivityRedisService.lPopList();
+            if(eventList == null || eventList.isEmpty()){
+                break;
+            }
+            try{
+                List<PostActivity> insertList = eventList.stream().map(timelinePostMapper::fromPostActivityEvent).toList();
+//                postActivityMongoRepository.saveAll(insertList);
+            }
+            catch (Exception e){
+                // kafka DLQ publish
+                // (TODO 구현 예정)
 
-    /**
-     * 현재 날짜 이벤트 처리
-     */
-    private void processCurrentDateEvent(PostDto.PostActivityEvent event) {
-        log.info("Processing current date event: postId={}, activityType={}",
-                event.getPostId(), event.getPostActivityType());
-        // 실시간 처리 로직 구현
-//        switch (event.getPostActivityType()) {
-//            case PostActivityType.CREATE:
-//                handlePostCreated(event);
-//                break;
-//            case PostActivityType.UPDATE:
-//                handlePostUpdated(event);
-//                break;
-//            case PostActivityType.DELETE:
-//                handlePostDeleted(event);
-//                break;
-//            default:
-//                log.warn("Unknown activity type: {}", event.getPostActivityType());
-//        }
-    }
+                // redis DLQ caching
+                postActivityRedisService.rPushDeadLetterEvent(eventList);
+            }
+        }
 
-    /**
-     * 과거 날짜 이벤트 처리 (배치 처리) // 배치 모듈에서... 구독
-     */
-    private void processHistoricalEvent(PostDto.PostActivityEvent event) {
-        log.info("Processing historical event: postId={}, eventDate={}",
-                event.getPostId(), event.getCreatedAt());
+        // insert 실패시
+        // 다른 Redis List 에 put  (실패한 데이터이더라도, 실패 후 다시 성공적으로 insert 하면,
+        // created_at 기준으로 읽어들이기 때문에, (도큐먼트의 순서가 아닌, created_at 으로 읽어들이므로)
+        // 후처리가 데이터의 모호함을 만들지 않는다.
+
     }
 
 }

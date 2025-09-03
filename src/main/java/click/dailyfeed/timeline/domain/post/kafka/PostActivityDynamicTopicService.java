@@ -25,10 +25,10 @@ import java.util.stream.Collectors;
 public class PostActivityDynamicTopicService {
     private final KafkaAdmin kafkaAdmin;
 
-    @Value("${dailyfeed.kafka.topic.post-activity.prefix}")
+    @Value("${infrastructure.kafka.topic.post-activity.prefix}")
     private String topicPrefix;
 
-    @Value("${dailyfeed.kafka.topic.post-activity.prefix-date-format}")
+    @Value("${infrastructure.kafka.topic.post-activity.prefix-date-format}")
     private String dateFormat;
 
     /**
