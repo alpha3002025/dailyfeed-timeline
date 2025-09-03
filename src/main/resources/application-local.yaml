@@ -99,7 +99,8 @@ dailyfeed:
 
 infrastructure:
   mongodb:
-    timeline: dailyfeed
+    timeline:
+      database: dailyfeed
   redis:
     event-queue:
       post-activity-event:
