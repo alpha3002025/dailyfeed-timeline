@@ -29,28 +29,28 @@ public class CacheManagerConfig {
             new CacheProperty("cache2", 42)
     );
 
-    @Bean
-    public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer(
-            @Qualifier("polymorphicObjectMapper") ObjectMapper polymorphicObjectMapper
-    ) {
-        return builder -> {
-            cacheProperties.forEach(prop -> {
-                RedisCacheConfiguration cacheConfig = RedisCacheConfiguration.defaultCacheConfig()
-                        .disableCachingNullValues()
-                        .serializeKeysWith(
-                                RedisSerializationContext.SerializationPair.fromSerializer(
-                                        new StringRedisSerializer()
-                                )
-                        )
-                        .serializeValuesWith(
-                                RedisSerializationContext.SerializationPair.fromSerializer(
-                                        new GenericJackson2JsonRedisSerializer(polymorphicObjectMapper)
-                                )
-                        )
-                        .entryTtl(Duration.ofSeconds(prop.getTtl()));
-
-                builder.withCacheConfiguration(prop.getConfigAlias(), cacheConfig);
-            });
-        };
-    }
+//    @Bean
+//    public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer(
+//            @Qualifier("polymorphicObjectMapper") ObjectMapper polymorphicObjectMapper
+//    ) {
+//        return builder -> {
+//            cacheProperties.forEach(prop -> {
+//                RedisCacheConfiguration cacheConfig = RedisCacheConfiguration.defaultCacheConfig()
+//                        .disableCachingNullValues()
+//                        .serializeKeysWith(
+//                                RedisSerializationContext.SerializationPair.fromSerializer(
+//                                        new StringRedisSerializer()
+//                                )
+//                        )
+//                        .serializeValuesWith(
+//                                RedisSerializationContext.SerializationPair.fromSerializer(
+//                                        new GenericJackson2JsonRedisSerializer(polymorphicObjectMapper)
+//                                )
+//                        )
+//                        .entryTtl(Duration.ofSeconds(prop.getTtl()));
+//
+//                builder.withCacheConfiguration(prop.getConfigAlias(), cacheConfig);
+//            });
+//        };
+//    }
 }
