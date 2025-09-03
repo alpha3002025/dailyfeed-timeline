@@ -24,7 +24,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Component
 public class PostActivityConsumer {
-//    private final PostActivityMongoRepository postActivityMongoRepository;
+    private final PostActivityMongoRepository postActivityMongoRepository;
     private final PostActivityRedisService postActivityRedisService;
     private final TimelinePostMapper timelinePostMapper;
 
@@ -105,7 +105,7 @@ public class PostActivityConsumer {
             }
             try{
                 List<PostActivity> insertList = eventList.stream().map(timelinePostMapper::fromPostActivityEvent).toList();
-//                postActivityMongoRepository.saveAll(insertList);
+                postActivityMongoRepository.saveAll(insertList);
             }
             catch (Exception e){
                 // kafka DLQ publish

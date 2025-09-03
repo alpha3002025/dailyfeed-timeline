@@ -3,7 +3,6 @@ package click.dailyfeed.timeline.domain.post.mapper;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.timeline.domain.post.document.PostActivity;
 import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
