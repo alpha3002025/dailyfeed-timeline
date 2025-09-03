@@ -28,13 +28,13 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
-    @Value("${dailyfeed.kafka.topic.post-activity.prefix}")
+    @Value("${infrastructure.kafka.topic.post-activity.prefix}")
     private String postActivityPrefix;
 
-    @Value("${dailyfeed.kafka.topic.post-activity.prefix-date-format}")
+    @Value("${infrastructure.kafka.topic.post-activity.prefix-date-format}")
     private String dateFormat;
 
-    @Value("${dailyfeed.kafka.topic.post-activity.retention-ms:604800000}")
+    @Value("${infrastructure.kafka.topic.post-activity.retention-ms:604800000}")
     private String retentionMs;
 
     // 공통 Consumer 설정 메서드
@@ -49,7 +49,7 @@ public class KafkaConfig {
         return props;
     }
 
-    // 1. Post Activity Consumer 설정
+    // Post Activity Consumer 설정
     @Bean(name = "postActivityConsumerFactory")
     public ConsumerFactory<String, PostDto.PostActivityEvent> postActivityConsumerFactory() {
         Map<String, Object> props = getCommonConsumerProps();

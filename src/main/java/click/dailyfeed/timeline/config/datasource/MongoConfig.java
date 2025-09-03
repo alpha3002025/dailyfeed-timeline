@@ -30,7 +30,7 @@ public class MongoConfig {
     @Value("${spring.data.mongodb.uri}")
     private String mongoUri;
 
-    @Value("${app.services.content.mongodb.database}")
+    @Value("${infrastructure.mongodb.timeline.database}")
     private String database;
 
     @Bean

@@ -29,12 +29,12 @@ spring:
       port: 26379
       host: localhost
     mongodb:
-      host: ${MONGODB_HOST:localhost}
+      host: ${MONGODB_HOST:alpha300.sz30zco.mongodb.net}
       port: ${MONGODB_PORT:27017}
       username: ${MONGODB_USER:dailyfeed-search}
       password: ${MONGODB_PASSWORD:hitEnter!!!}
-      protocol: mongodb # mongodb+srv or mongodb (atlas 에서만 mongodb+srv)
-      uri: mongodb://dailyfeed-search:hitEnter!!!@localhost/dailyfeed
+      protocol: mongodb+srv
+      uri: mongodb+srv://dailyfeed-search:hitEnter!!!@alpha300.sz30zco.mongodb.net/dailyfeed?retryWrites=true&w=majority&appName=alpha300
   ## kafka
   kafka:
     bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
@@ -99,7 +99,8 @@ dailyfeed:
 
 infrastructure:
   mongodb:
-    timeline: dailyfeed
+    timeline:
+      database: dailyfeed
   redis:
     event-queue:
       post-activity-event:
