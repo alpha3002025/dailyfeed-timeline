@@ -34,7 +34,7 @@ spring:
       username: ${MONGODB_USER:dailyfeed-search}
       password: ${MONGODB_PASSWORD:hitEnter!!!}
       protocol: mongodb+srv
-      uri: mongodb+srv://dailyfeed-search:hitEnter!!!@alpha300.sz30zco.mongodb.net/dailyfeed?retryWrites=true&w=majority&appName=alpha300
+      uri: mongodb+srv://dailyfeed-search:hitEnter$$$@alpha300.sz30zco.mongodb.net/dailyfeed?retryWrites=true&w=majority&appName=alpha300
   jackson:
     serialization:
       write-dates-as-timestamps: false
