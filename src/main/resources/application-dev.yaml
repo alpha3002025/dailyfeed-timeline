@@ -4,11 +4,11 @@ spring:
   ## database connection
   datasource:
     hikari:
-      jdbc-url: jdbc:mysql://127.0.0.1:23306/dailyfeed?characterEncoding=UTF-8&serverTimezone=UTC&rewriteBatchedStatements=true
+      jdbc-url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_SCHEMA}?characterEncoding=UTF-8&serverTimezone=UTC&rewriteBatchedStatements=true
       driver-class-name: com.mysql.jdbc.Driver
-      username: root
-      password: hitEnter!!!
-      schema: dailyfeed
+      username: ${MYSQL_USERNAME}
+      password: ${MYSQL_PASSWORD}
+      schema: ${MYSQL_SCHEMA}
   ## jpa
   jpa:
     hibernate:
@@ -26,15 +26,11 @@ spring:
         max-page-size: 100
         default-page-size: 20
     redis:
-      port: 26379
-      host: localhost
+      port: ${REDIS_HOST:localhost}
+      host: ${REDIS_PORT:6379}
     mongodb:
-      host: ${MONGODB_HOST:alpha300.sz30zco.mongodb.net}
-      port: ${MONGODB_PORT:27017}
-      username: ${MONGODB_USER:dailyfeed-search}
-      password: ${MONGODB_PASSWORD:hitEnter!!!}
-      protocol: mongodb+srv
-      uri: mongodb+srv://dailyfeed-search:hitEnter$$$@alpha300.sz30zco.mongodb.net/dailyfeed?retryWrites=true&w=majority&appName=alpha300
+      protocol: mongodb+srv # mongodb+srv or mongodb (atlas 에서만 mongodb+srv)
+      uri: ${MONGODB_CONNECTION_URI}
   jackson:
     serialization:
       write-dates-as-timestamps: false
@@ -51,6 +47,14 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    properties:
+      security:
+        protocol: ${KAFKA_SASL_PROTOCOL}
+      sasl:
+        mechanism: ${KAFKA_SASL_MECHANISM}
+        jaas:
+          config:
+            org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_USER}" password="${KAFKA_PASSWORD}";
 
 springdoc:
   packages-to-scan: click.dailyfeed.timeline.domain

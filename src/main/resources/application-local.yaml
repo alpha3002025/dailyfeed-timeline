@@ -4,11 +4,11 @@ spring:
   ## database connection
   datasource:
     hikari:
-      jdbc-url: jdbc:mysql://127.0.0.1:23306/dailyfeed?characterEncoding=UTF-8&serverTimezone=UTC&rewriteBatchedStatements=true
+      jdbc-url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_SCHEMA}?characterEncoding=UTF-8&serverTimezone=UTC&rewriteBatchedStatements=true
       driver-class-name: com.mysql.jdbc.Driver
-      username: root
-      password: hitEnter!!!
-      schema: dailyfeed
+      username: ${MYSQL_USERNAME}
+      password: ${MYSQL_PASSWORD}
+      schema: ${MYSQL_SCHEMA}
   ## jpa
   jpa:
     hibernate:
@@ -26,18 +26,14 @@ spring:
         max-page-size: 100
         default-page-size: 20
     redis:
-      port: 26379
-      host: localhost
+      port: ${REDIS_HOST:localhost}
+      host: ${REDIS_PORT:6379}
     mongodb:
-      host: ${MONGODB_HOST:localhost}
-      port: ${MONGODB_PORT:27017}
-      username: ${MONGODB_USER:dailyfeed-search}
-      password: ${MONGODB_PASSWORD:hitEnter!!!}
-      protocol: mongodb # mongodb+srv or mongodb (atlas 에서만 mongodb+srv)
-      uri: mongodb://dailyfeed-search:hitEnter!!!@localhost/dailyfeed
+      protocol: mongodb+srv # mongodb+srv or mongodb (atlas 에서만 mongodb+srv)
+      uri: ${MONGODB_CONNECTION_URI}
   ## kafka
   kafka:
-    bootstrap-servers: ${KAFKA_SERVER:localhost:9092}
+    bootstrap-servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:9092}
     consumer:
       group-id: post-activity-consumer-group
       auto-offset-reset: earliest
@@ -48,6 +44,14 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    properties:
+      security:
+        protocol: ${KAFKA_SASL_PROTOCOL}
+      sasl:
+        mechanism: ${KAFKA_SASL_MECHANISM}
+        jaas:
+          config:
+            org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_USER}" password="${KAFKA_PASSWORD}";
 
 springdoc:
   packages-to-scan: click.dailyfeed.timeline.domain
