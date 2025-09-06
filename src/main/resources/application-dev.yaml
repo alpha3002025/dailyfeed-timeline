@@ -3,8 +3,12 @@ spring:
     name: dailyfeed-timeline
   ## database connection
   datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    url: ${MYSQL_JDBC_URL}
+    username: ${MYSQL_USERNAME:dailyfeed}
+    password: ${MYSQL_PASSWORD:hitEnter@@@}
     hikari:
-      jdbc-url: jdbc:mysql://${MYSQL_HOST:mysql.infra.svc.cluster.local}:${MYSQL_PORT:3306}/${MYSQL_SCHEMA:dailyfeed}?characterEncoding=UTF-8&serverTimezone=UTC&rewriteBatchedStatements=true
+      jdbc-url: ${MYSQL_JDBC_URL}
       driver-class-name: com.mysql.jdbc.Driver
       username: ${MYSQL_USERNAME:dailyfeed}
       password: ${MYSQL_PASSWORD:hitEnter@@@}
