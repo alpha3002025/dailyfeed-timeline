@@ -3,12 +3,17 @@ spring:
     name: dailyfeed-timeline
   ## database connection
   datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_SCHEMA}?characterEncoding=UTF-8&serverTimezone=UTC&rewriteBatchedStatements=true
+    username: ${MYSQL_USERNAME:dailyfeed}
+    password: ${MYSQL_PASSWORD:hitEnter@@@}
     hikari:
       jdbc-url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_SCHEMA}?characterEncoding=UTF-8&serverTimezone=UTC&rewriteBatchedStatements=true
       driver-class-name: com.mysql.jdbc.Driver
-      username: ${MYSQL_USERNAME}
-      password: ${MYSQL_PASSWORD}
-      schema: ${MYSQL_SCHEMA}
+      username: ${MYSQL_USERNAME:dailyfeed}
+      password: ${MYSQL_PASSWORD:hitEnter@@@}
+      schema: ${MYSQL_SCHEMA:dailyfeed}
+
   ## jpa
   jpa:
     hibernate:
@@ -26,11 +31,11 @@ spring:
         max-page-size: 100
         default-page-size: 20
     redis:
-      port: ${REDIS_HOST:localhost}
-      host: ${REDIS_PORT:6379}
+      port: ${REDIS_PORT:6379}
+      host: ${REDIS_HOST:redis-master.infra.svc.cluster.local}
     mongodb:
       protocol: mongodb+srv # mongodb+srv or mongodb (atlas 에서만 mongodb+srv)
-      uri: ${MONGODB_CONNECTION_URI}
+      uri: ${MONGODB_CONNECTION_URI:mongodb+srv://dailyfeed-search:hitEnter$$$@alpha300.sz30zco.mongodb.net/dailyfeed?retryWrites=true&w=majority&appName=alpha300}
   ## kafka
   kafka:
     bootstrap-servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:9092}
@@ -130,3 +135,5 @@ infrastructure:
       notification:
         group-id: notification-consumer-group
         concurrency: 1
+server:
+  port: 8080

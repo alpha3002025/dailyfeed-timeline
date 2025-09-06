@@ -3,12 +3,13 @@ package click.dailyfeed.timeline.domain.following.mapper;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.global.web.response.DailyfeedPage;
 import click.dailyfeed.timeline.domain.post.document.PostActivity;
+import org.mapstruct.Mapper;
+import org.mapstruct.ReportingPolicy;
 import org.springframework.data.domain.Page;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-@Component
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface FollowingMapper {
     default PostDto.PostActivityEvent toEvent(PostActivity postActivity) {
         return PostDto.PostActivityEvent.builder()
