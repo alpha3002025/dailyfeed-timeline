@@ -29,7 +29,7 @@ public class PostActivityConsumer {
     private final TimelinePostMapper timelinePostMapper;
 
     @KafkaListener(
-            topics = "post-activity-.*",
+            topicPattern = "post-activity-.*",
             groupId = "post-activity-consumer-group-1",
             containerFactory = "postActivityKafkaListenerContainerFactory"
     )

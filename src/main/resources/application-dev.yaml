@@ -40,7 +40,7 @@ spring:
       write-dates-as-timestamps: false
   ## kafka
   kafka:
-    bootstrap-servers: ${KAFKA_SERVER:localhost:39092}
+    bootstrap-servers: ${KAFKA_SERVER:localhost:29092}
     consumer:
       group-id: post-activity-consumer-group
       auto-offset-reset: earliest
@@ -51,14 +51,7 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-    properties:
-      security:
-        protocol: ${KAFKA_SASL_PROTOCOL}
-      sasl:
-        mechanism: ${KAFKA_SASL_MECHANISM}
-        jaas:
-          config:
-            org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_USER}" password="${KAFKA_PASSWORD}";
+    # SASL 인증 비활성화 (로컬 docker-compose는 PLAINTEXT 사용)
 springdoc:
   packages-to-scan: click.dailyfeed.timeline.domain
   default-consumes-media-type: application/json;charset=UTF-8
