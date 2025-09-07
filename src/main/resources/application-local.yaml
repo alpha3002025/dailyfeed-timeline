@@ -6,12 +6,12 @@ spring:
     driver-class-name: com.mysql.jdbc.Driver
     url: ${MYSQL_JDBC_URL}
     username: ${MYSQL_USERNAME:dailyfeed}
-    password: ${MYSQL_PASSWORD:hitEnter@@@}
+    password: ${MYSQL_PASSWORD:hitEnter###}
     hikari:
       jdbc-url: ${MYSQL_JDBC_URL}
       driver-class-name: com.mysql.jdbc.Driver
       username: ${MYSQL_USERNAME:dailyfeed}
-      password: ${MYSQL_PASSWORD:hitEnter@@@}
+      password: ${MYSQL_PASSWORD:hitEnter###}
       schema: ${MYSQL_SCHEMA:dailyfeed}
 
   ## jpa
@@ -34,8 +34,8 @@ spring:
       port: ${REDIS_PORT:6379}
       host: ${REDIS_HOST:redis-master.infra.svc.cluster.local}
     mongodb:
-      protocol: mongodb+srv # mongodb+srv or mongodb (atlas 에서만 mongodb+srv)
-      uri: ${MONGODB_CONNECTION_URI:mongodb+srv://dailyfeed-search:hitEnter$$$@alpha300.sz30zco.mongodb.net/dailyfeed?retryWrites=true&w=majority&appName=alpha300}
+      protocol: mongodb # mongodb+srv or mongodb (atlas 에서만 mongodb+srv)
+      uri: ${MONGODB_CONNECTION_URI:mongodb://dailyfeed:hitEnter###@mongodb.infra.svc.cluster.local:27017/dailyfeed}
   ## kafka
   kafka:
     bootstrap-servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:9092}
