@@ -55,8 +55,7 @@ spring:
       sasl:
         mechanism: ${KAFKA_SASL_MECHANISM}
         jaas:
-          config:
-            org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_USER}" password="${KAFKA_PASSWORD}";
+          config: org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_USER}" password="${KAFKA_PASSWORD}";
 
 springdoc:
   packages-to-scan: click.dailyfeed.timeline.domain
