@@ -24,9 +24,9 @@ spring:
   devtools:
     restart:
       enabled: false
-  ## paging 관련
   data:
     web:
+      ## paging 관련
       pageable:
         max-page-size: 100
         default-page-size: 20
@@ -84,7 +84,7 @@ dailyfeed:
   services:
     member:
       feign:
-        url: ${MEMBER_SERVICE_URL:http://localhost:8081}
+        url: ${MEMBER_SERVICE_URL:http://localhost:8084}
         timeout:
           connect: 5000
           read: 10000
@@ -95,6 +95,11 @@ dailyfeed:
           connect: 5000
           read: 10000
     content:
+      feign:
+        url: ${CONTENT_SERVICE_URL:http://localhost:8081}
+        timeout:
+          connect: 5000
+          read: 10000
       comment:
         max-depth: 2    # 댓글 최대 깊이
         page-size: 20   # 기본 페이지 크기
@@ -135,4 +140,4 @@ infrastructure:
         group-id: notification-consumer-group
         concurrency: 1
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
