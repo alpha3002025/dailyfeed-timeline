@@ -23,7 +23,7 @@ public class PostActivityRedisService {
     private Integer batchSize;
 
     @Qualifier("postActivityEventRedisTemplate")
-    private RedisTemplate<String, PostDto.PostActivityEvent> redisTemplate;
+    private final RedisTemplate<String, PostDto.PostActivityEvent> redisTemplate;
 
     public void rPushEvent(PostDto.PostActivityEvent postActivityEvent) {
         redisTemplate.opsForList().rightPush(redisKey, postActivityEvent);

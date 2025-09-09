@@ -31,10 +31,10 @@ spring:
         default-page-size: 20
     redis:
       port: ${REDIS_PORT:26379}
-      host: ${REDIS_HOST:redis-master.infra.svc.cluster.local}
+      host: ${REDIS_HOST:localhost}
     mongodb:
       protocol: mongodb+srv # mongodb+srv or mongodb (atlas 에서만 mongodb+srv)
-      uri: ${MONGODB_CONNECTION_URI:mongodb+srv://dailyfeed-search:hitEnter###@alpha300.sz30zco.mongodb.net/dailyfeed?retryWrites=true&w=majority&appName=alpha300}
+      uri: ${MONGODB_CONNECTION_URI:mongodb+srv://dailyfeed-search:hitEnter###@alpha300.sz30zco.mongodb.net/dailyfeed?retryWrites=true&w=majority&appName=alpha300&connectTimeoutMS=30000&socketTimeoutMS=30000&serverSelectionTimeoutMS=30000}
   jackson:
     serialization:
       write-dates-as-timestamps: false

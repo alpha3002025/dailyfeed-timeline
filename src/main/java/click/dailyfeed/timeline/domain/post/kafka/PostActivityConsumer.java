@@ -40,6 +40,7 @@ public class PostActivityConsumer {
             @Header(KafkaHeaders.OFFSET) long offset ) {
         // 토픽명에서 날짜 추출
         String dateStr = extractDateFromTopicName(topic);
+//        log.info("😀😀😀😀😀 topicName = {}, postId = {}, memberId = {}, followingId = {}, type = {}, createdAt = {}, updatedAt = {}", topic, event.getPostId(), event.getMemberId(), event.getFollowingId(), event.getPostActivityType(), event.getCreatedAt(), event.getUpdatedAt());
 
         if (dateStr != null) {
             // 날짜 형식 검증 (yyyyMMdd 형식인지 확인)
@@ -56,7 +57,7 @@ public class PostActivityConsumer {
      * 토픽명에서 날짜 추출
      */
     private String extractDateFromTopicName(String topicName) {
-        String prefix = "post-created-activity-";
+        String prefix = "post-activity-";
         if (topicName.startsWith(prefix)) {
             return topicName.substring(prefix.length());
         }
@@ -100,6 +101,7 @@ public class PostActivityConsumer {
         // 1초에 한번씩 동작
         while(true){
             List<PostDto.PostActivityEvent> eventList = postActivityRedisService.lPopList();
+            log.info("🔨🔨🔨🔨🔨🔨🔨eventList.size() = {}", eventList.size());
             if(eventList == null || eventList.isEmpty()){
                 break;
             }
