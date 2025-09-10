@@ -67,8 +67,8 @@ public class TimelineService {
         }
     }
 
-    private PushPullPredicate checkPushOrPull(Long id, Integer followingCount) {
-        if(followingCount == null || followingCount < 0){
+    private PushPullPredicate checkPushOrPull(Long id, Long followingCount) {
+        if(followingCount == null || followingCount <= 0){
             return PushPullPredicate.PUSH;
         }
 

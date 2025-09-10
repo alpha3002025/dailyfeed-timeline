@@ -73,8 +73,10 @@ public class TimelinePullService {
                 }).toList();
     }
 
+    // todo 구현 시작 (2025.09.11)
     public List<MemberDto.Member> fetchFollowingMembers(String token, HttpServletResponse httpResponse) {
-        return memberFeignHelper.getMyFollowings(token, httpResponse);
+//        return memberFeignHelper.getMyFollowings(token, httpResponse);
+        return null;
     }
 
     public List<TimelineDto.TimelinePostActivity> listHeavyFollowingActivities(MemberDto.MemberProfile member, Pageable pageable, String token, HttpServletResponse httpServletResponse) {
