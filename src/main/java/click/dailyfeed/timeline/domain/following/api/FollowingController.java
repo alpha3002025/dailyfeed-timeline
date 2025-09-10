@@ -12,11 +12,11 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RequiredArgsConstructor
-@RestController("/api/timeline/followings")
+//@RestController("/api/timeline/followings")
 public class FollowingController {
     private final FollowingService followingService;
 
-    @GetMapping("/latest/posts")
+//    @GetMapping("/latest/posts")
     public DailyfeedPageResponse<PostDto.PostActivityEvent> getLatestPosts(
             @RequestHeader("Authorization") String token,
             HttpServletResponse response,

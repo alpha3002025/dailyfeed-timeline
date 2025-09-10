@@ -8,6 +8,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 public interface PostActivityMongoRepository extends MongoRepository<PostActivity, ObjectId> {
 
     Page<PostActivity> findByFollowingIdAndPostActivityTypeNotContainsOrderByUpdatedAtDesc(
@@ -21,4 +24,7 @@ public interface PostActivityMongoRepository extends MongoRepository<PostActivit
             Long followingId,
             PostActivityType activityType,
             Pageable pageable);
+
+    @Query("{ 'member_id': { $in: ?0 }, 'activityType': { $in: ['CREATE', 'UPDATE'] }, 'createdAt': { $gte: ?1 } }")
+    Page<PostActivity> findFollowingActivitiesWhereFollowingIdsIn(List<Long> followingIds, LocalDateTime since, Pageable pageable);
 }

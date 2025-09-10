@@ -11,7 +11,7 @@ import java.util.List;
 
 @RequiredArgsConstructor
 @Service
-public class PostActivityRedisService {
+public class PostActivityEventRedisService {
 
     @Value("${infrastructure.redis.event-queue.post-activity-event.list-key}")
     private String redisKey;

@@ -39,10 +39,6 @@ public class PostActivity {
     @Indexed
     private Long memberId;
 
-    @Field("following_id")
-    @Indexed
-    private Long followingId;
-
     @Field("post_id")
     private Long postId;
 
@@ -60,11 +56,10 @@ public class PostActivity {
 
     @PersistenceCreator
     public PostActivity(
-            ObjectId id, Long memberId, Long followingId, Long postId, PostActivityType postActivityType, LocalDateTime createdAt, LocalDateTime updatedAt
+            ObjectId id, Long memberId, Long postId, PostActivityType postActivityType, LocalDateTime createdAt, LocalDateTime updatedAt
     ) {
         this.id = id;
         this.memberId = memberId;
-        this.followingId = followingId;
         this.postId = postId;
         this.postActivityType = postActivityType;
         this.createdAt = createdAt;
@@ -72,9 +67,8 @@ public class PostActivity {
     }
 
     @Builder(builderMethodName = "newDocumentBuilder")
-    public PostActivity(Long memberId, Long followingId, Long postId, PostActivityType postActivityType) {
+    public PostActivity(Long memberId, Long postId, PostActivityType postActivityType) {
         this.memberId = memberId;
-        this.followingId = followingId;
         this.postId = postId;
         this.postActivityType = postActivityType;
     }

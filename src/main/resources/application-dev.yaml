@@ -89,6 +89,8 @@ dailyfeed:
         timeout:
           connect: 5000
           read: 10000
+      push-pull:
+        limit: 1000
     content:
       comment:
         max-depth: 2    # 댓글 최대 깊이

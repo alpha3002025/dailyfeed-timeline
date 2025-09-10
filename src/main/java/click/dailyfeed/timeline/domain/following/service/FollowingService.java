@@ -34,7 +34,7 @@ public class FollowingService {
     ){
         MemberDto.Member member = memberFeignHelper.getMember(token, response);
         Page<PostActivity> pageResult = postActivityMongoRepository.findByFollowingIdAndActivityTypeNotEquals(
-                member.getId(), PostActivityType.DELETE, pageable
+                member.getId(), PostActivityType.SOFT_DELETE, pageable
         );
 
         List<PostDto.PostActivityEvent> pageEvent = pageResult.getContent().stream().map(followingMapper::toEvent).toList();

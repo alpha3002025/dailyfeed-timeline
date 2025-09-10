@@ -3,7 +3,7 @@ package click.dailyfeed.timeline.domain.post.kafka;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.timeline.domain.post.document.PostActivity;
 import click.dailyfeed.timeline.domain.post.mapper.TimelinePostMapper;
-import click.dailyfeed.timeline.domain.post.redis.PostActivityRedisService;
+import click.dailyfeed.timeline.domain.post.redis.PostActivityEventRedisService;
 import click.dailyfeed.timeline.domain.post.repository.mongo.PostActivityMongoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ import java.util.List;
 @Component
 public class PostActivityConsumer {
     private final PostActivityMongoRepository postActivityMongoRepository;
-    private final PostActivityRedisService postActivityRedisService;
+    private final PostActivityEventRedisService postActivityEventRedisService;
     private final TimelinePostMapper timelinePostMapper;
 
     @KafkaListener(
@@ -92,7 +92,7 @@ public class PostActivityConsumer {
         }
 
         // 2) cache put
-        postActivityRedisService.rPushEvent(event);
+        postActivityEventRedisService.rPushEvent(event);
     }
 
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
@@ -100,7 +100,7 @@ public class PostActivityConsumer {
     public void insertMany(){
         // 1초에 한번씩 동작
         while(true){
-            List<PostDto.PostActivityEvent> eventList = postActivityRedisService.lPopList();
+            List<PostDto.PostActivityEvent> eventList = postActivityEventRedisService.lPopList();
             log.info("🔨🔨🔨🔨🔨🔨🔨eventList.size() = {}", eventList.size());
             if(eventList == null || eventList.isEmpty()){
                 break;
@@ -114,7 +114,7 @@ public class PostActivityConsumer {
                 // (TODO 구현 예정)
 
                 // redis DLQ caching
-                postActivityRedisService.rPushDeadLetterEvent(eventList);
+                postActivityEventRedisService.rPushDeadLetterEvent(eventList);
             }
         }
 

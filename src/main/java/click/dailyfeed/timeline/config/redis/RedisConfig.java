@@ -1,6 +1,7 @@
 package click.dailyfeed.timeline.config.redis;
 
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
+import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,15 +67,28 @@ public class RedisConfig {
         return template;
     }
 
-//    @Bean
-//    RedisTemplate<String, BookRankingCache> bookRankingRedisTemplate(
-//            RedisConnectionFactory redisConnectionFactory,
-//            @Qualifier("bookObjectMapper") ObjectMapper bookObjectMapper
-//    ) {
-//        RedisTemplate<String, BookRankingCache> bookRedisTemplate = new RedisTemplate<>();
-//        bookRedisTemplate.setConnectionFactory(redisConnectionFactory);
-//        bookRedisTemplate.setKeySerializer(new StringRedisSerializer());
-//        bookRedisTemplate.setValueSerializer(new Jackson2JsonRedisSerializer<>(bookObjectMapper, Book.class));
-//        return bookRedisTemplate;
-//    }
+    @Bean
+    RedisTemplate<String, TimelineDto.TimelinePostActivity> timelinePostActivityRedisTemplate(
+            RedisConnectionFactory redisConnectionFactory,
+            @Qualifier("commonObjectMapper") ObjectMapper commonObjectMapper
+    ){
+        RedisTemplate<String, TimelineDto.TimelinePostActivity> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
+
+        // Jackson2JsonRedisSerializer 설정
+        Jackson2JsonRedisSerializer<TimelineDto.TimelinePostActivity> jackson2JsonRedisSerializer =
+                new Jackson2JsonRedisSerializer<>(
+                        commonObjectMapper,
+                        TimelineDto.TimelinePostActivity.class
+                );
+
+        // Key는 String으로, Value는 JSON으로 직렬화
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(jackson2JsonRedisSerializer);
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(jackson2JsonRedisSerializer);
+
+        template.afterPropertiesSet();
+        return template;
+    }
 }

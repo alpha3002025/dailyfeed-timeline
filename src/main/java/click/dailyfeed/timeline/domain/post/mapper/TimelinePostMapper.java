@@ -19,7 +19,6 @@ public interface TimelinePostMapper {
     default PostActivity fromPostActivityEvent(PostDto.PostActivityEvent postActivityEvent) {
         return PostActivity.newDocumentBuilder()
                 .memberId(postActivityEvent.getMemberId())
-                .followingId(postActivityEvent.getFollowingId())
                 .postId(postActivityEvent.getPostId())
                 .postActivityType(postActivityEvent.getPostActivityType())
                 .build();
