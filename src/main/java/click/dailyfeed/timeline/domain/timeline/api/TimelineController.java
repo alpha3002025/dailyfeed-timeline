@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TimelineController {
     private final TimelineService timelineService;
 
-    @GetMapping("/followings")
+    @GetMapping("/posts/followings")
     public DailyfeedScrollResponse<TimelineDto.TimelinePostActivity> getMyFollowingMembersTimeline(
             @RequestHeader("Authorization") String token,
             HttpServletResponse response,
