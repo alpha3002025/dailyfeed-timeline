@@ -1,7 +1,9 @@
 package click.dailyfeed.timeline.domain.timeline.api;
 
+import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.global.web.response.DailyfeedScrollResponse;
+import click.dailyfeed.feign.config.web.AuthenticatedMember;
 import click.dailyfeed.timeline.domain.timeline.service.TimelineService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ public class TimelineController {
 
     @GetMapping("/posts/followings")
     public DailyfeedScrollResponse<TimelineDto.TimelinePostActivity> getMyFollowingMembersTimeline(
+            @AuthenticatedMember MemberDto.Member member,
             @RequestHeader("Authorization") String token,
             HttpServletResponse response,
             @PageableDefault(size = 20, sort = "updatedAt") Pageable pageable
