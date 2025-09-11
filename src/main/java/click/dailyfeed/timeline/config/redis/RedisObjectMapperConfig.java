@@ -11,8 +11,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RedisObjectMapperConfig {
 
-    @Bean(name = "commonObjectMapper")
-    public ObjectMapper commonObjectMapper() {
+    @Bean(name = "redisCommonObjectMapper")
+    public ObjectMapper redisCommonObjectMapper() {
         return new ObjectMapper()
                 .registerModule(new JavaTimeModule())
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)

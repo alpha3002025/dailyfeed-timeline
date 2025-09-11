@@ -70,7 +70,7 @@ public class RedisConfig {
     @Bean
     RedisTemplate<String, TimelineDto.TimelinePostActivity> timelinePostActivityRedisTemplate(
             RedisConnectionFactory redisConnectionFactory,
-            @Qualifier("commonObjectMapper") ObjectMapper commonObjectMapper
+            @Qualifier("redisCommonObjectMapper") ObjectMapper commonObjectMapper
     ){
         RedisTemplate<String, TimelineDto.TimelinePostActivity> template = new RedisTemplate<>();
         template.setConnectionFactory(redisConnectionFactory);
