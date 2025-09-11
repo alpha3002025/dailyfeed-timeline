@@ -1,6 +1,5 @@
 package click.dailyfeed.timeline.domain.timeline.service;
 
-import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.domain.timeline.timeline.predicate.PushPullPredicate;
@@ -31,10 +30,10 @@ public class TimelineService {
     @Value("${dailyfeed.services.timeline.push-pull.limit}")
     private Integer pushPullLimit;
 
-    public DailyfeedScrollResponse<TimelineDto.TimelinePostActivity> getFollowingsTimeline(String token, Pageable pageable, HttpServletResponse httpServletResponse) {
+    public DailyfeedScrollResponse<TimelineDto.TimelinePostActivity> getMyFollowingMembersTimeline(Pageable pageable, String token, HttpServletResponse httpServletResponse) {
         MemberDto.MemberProfile member = memberFeignHelper.getMemberFollowSummary(token, httpServletResponse);
 
-        if(PushPullPredicate.PUSH.equals(checkPushOrPull(member.getId(), member.getFollowingCount()))){
+        if(PushPullPredicate.PUSH.equals(checkPushOrPull(member.getFollowingCount()))){
             // (1)
             // redis 에서 조회
             List<TimelineDto.TimelinePostActivity> topNResult = timelinePostActivityRedisService.topN(member.getId(), pageable);
@@ -42,7 +41,7 @@ public class TimelineService {
             // (2)
             // 부족할 경우 pull 데이터로 보완
             if(topNResult.size() >= pageable.getPageSize()){
-                List<TimelineDto.TimelinePostActivity> pullActivities = timelinePullService.listFollowingActivities(member.getId(), pageable.getPageNumber(), pageable.getPageSize(), 24, token, httpServletResponse);
+                List<TimelineDto.TimelinePostActivity> pullActivities = timelinePullService.listMyFollowingActivities(member.getId(), pageable.getPageNumber(), pageable.getPageSize(), 24, token, httpServletResponse);
                 List<TimelineDto.TimelinePostActivity> timelinePostActivities = mergeFeedsWithoutDuplicate(topNResult, pullActivities, pageable.getPageSize());
                 DailyfeedScrollPage<TimelineDto.TimelinePostActivity> slice = timelineMapper.fromTimelineList(timelinePostActivities, pageable);
                 return DailyfeedScrollResponse.<TimelineDto.TimelinePostActivity>builder()
@@ -59,7 +58,7 @@ public class TimelineService {
                     .build();
         }
         else{ // 실제 데이터를 그대로 pull 해온다.
-            List<TimelineDto.TimelinePostActivity> pullActivities = timelinePullService.listHeavyFollowingActivities(member, pageable, token, httpServletResponse);
+            List<TimelineDto.TimelinePostActivity> pullActivities = timelinePullService.listHeavyMyFollowingActivities(member, pageable, token, httpServletResponse);
             return DailyfeedScrollResponse.<TimelineDto.TimelinePostActivity>builder()
                     .content(timelineMapper.fromTimelineList(pullActivities, pageable))
                     .ok("Y").reason("SUCCESS").statusCode("200")
@@ -67,7 +66,7 @@ public class TimelineService {
         }
     }
 
-    private PushPullPredicate checkPushOrPull(Long id, Long followingCount) {
+    private PushPullPredicate checkPushOrPull(Long followingCount) {
         if(followingCount == null || followingCount <= 0){
             return PushPullPredicate.PUSH;
         }

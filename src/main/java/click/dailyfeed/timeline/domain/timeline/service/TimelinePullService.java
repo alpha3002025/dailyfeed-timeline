@@ -31,8 +31,8 @@ public class TimelinePullService {
     private final TimelinePostActivityRedisService timelinePostActivityRedisService;
 
     @Cacheable(value = "followingsActivities", key="#userId + '_' + #page + '_' + #size + '_' + #hours", unless = "#result.isEmpty()")
-    public List<TimelineDto.TimelinePostActivity> listFollowingActivities(Long userId, int page, int size, int hours, String token, HttpServletResponse httpResponse) {
-        List<MemberDto.Member> members = fetchFollowingMembers(token, httpResponse);
+    public List<TimelineDto.TimelinePostActivity> listMyFollowingActivities(Long userId, int page, int size, int hours, String token, HttpServletResponse httpResponse) {
+        List<MemberDto.Member> members = fetchMyFollowingMembers(token, httpResponse);
 
         List<Long> followingIds = members.stream().map(MemberDto.Member::getId).toList();
 
@@ -54,7 +54,6 @@ public class TimelinePullService {
         PostDto.PostsBulkRequest request = PostDto.PostsBulkRequest.builder().ids(postIds).build();
         Map<Long, PostDto.Post> postMap = postFeignHelper.getPostMap(request, token, httpResponse);
 
-
         return activities.stream()
                 .map(activity -> {
                     final MemberDto.Member m = memberMap.get(activity.getMemberId());
@@ -73,16 +72,20 @@ public class TimelinePullService {
                 }).toList();
     }
 
-    // todo 구현 시작 (2025.09.11)
-    public List<MemberDto.Member> fetchFollowingMembers(String token, HttpServletResponse httpResponse) {
-//        return memberFeignHelper.getMyFollowings(token, httpResponse);
-        return null;
+    public List<MemberDto.Member> fetchMyFollowingMembers(String token, HttpServletResponse httpResponse) {
+        return memberFeignHelper.getMyFollowingMembers(token, httpResponse)
+                .stream()
+                .map(f -> MemberDto.Member.builder()
+                        .id(f.getMemberId())
+                        .email(f.getEmail())
+                        .name(f.getName())
+                        .build()
+                ).collect(Collectors.toList());
     }
 
-    public List<TimelineDto.TimelinePostActivity> listHeavyFollowingActivities(MemberDto.MemberProfile member, Pageable pageable, String token, HttpServletResponse httpServletResponse) {
+    public List<TimelineDto.TimelinePostActivity> listHeavyMyFollowingActivities(MemberDto.MemberProfile member, Pageable pageable, String token, HttpServletResponse httpServletResponse) {
         final String key = "heavy_following_feed:" + member.getId() + ":" + pageable.getPageNumber() + ":" + pageable.getPageSize();
 
-//        List<TimelineDto.TimelinePostActivity>
         List<TimelineDto.TimelinePostActivity> cached = timelinePostActivityRedisService.getList(key, pageable.getPageNumber(), pageable.getPageSize());
 
         if (cached != null && !cached.isEmpty()) {
@@ -90,7 +93,7 @@ public class TimelinePullService {
         }
 
         if (member.getFollowingCount() < 10000){ // following 이 2000 명 이하면 일단은 그래도 캐시를 적용했으니 그냥 pull
-            return listFollowingActivities(member.getId(), pageable.getPageNumber(), pageable.getPageSize(), 24, token, httpServletResponse);
+            return listMyFollowingActivities(member.getId(), pageable.getPageNumber(), pageable.getPageSize(), 24, token, httpServletResponse);
         }
         else{ // 10000 명 이상이면 super heavy 로 판정 (팔로잉을 10000명 이상 한다는 것은 비정상 유저일수도 있고, 인플루언서의 인맥이 넓을 경우 등 일수도 있지만, 호날두는 605명... ㅋㅋ 😆😆)
             return listSuperHeavyFollowingActivities(member, pageable, token, httpServletResponse);
@@ -103,7 +106,7 @@ public class TimelinePullService {
             Pageable pageable,
             String token,
             HttpServletResponse httpResponse) {
-        List<MemberDto.Member> members = fetchFollowingMembers(token, httpResponse);
+        List<MemberDto.Member> members = fetchMyFollowingMembers(token, httpResponse);
 
         // 최근 3일간 활동한 팔로잉 사용자만 필터링
         LocalDateTime since = LocalDateTime.now().minusDays(3);
