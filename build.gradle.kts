@@ -44,6 +44,7 @@ allprojects {
     dependencies {
         implementation(project(":dailyfeed-code"))
         implementation(project(":dailyfeed-feign"))
+        implementation(project(":dailyfeed-pagination-support"))
 
         // spring
         implementation("org.springframework.boot:spring-boot-starter-cache")
