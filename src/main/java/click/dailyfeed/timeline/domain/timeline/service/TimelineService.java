@@ -1,10 +1,10 @@
 package click.dailyfeed.timeline.domain.timeline.service;
 
-import click.dailyfeed.code.domain.member.member.dto.MemberDto;
+import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.domain.timeline.timeline.predicate.PushPullPredicate;
 import click.dailyfeed.code.global.web.response.DailyfeedScrollPage;
-import click.dailyfeed.code.global.web.response.DailyfeedScrollResponse;
+import click.dailyfeed.code.global.web.response.DailyfeedServerResponse;
 import click.dailyfeed.feign.domain.member.MemberFeignHelper;
 import click.dailyfeed.timeline.domain.post.repository.mongo.PostActivityMongoRepository;
 import click.dailyfeed.timeline.domain.timeline.mapper.TimelineMapper;
@@ -30,10 +30,10 @@ public class TimelineService {
     @Value("${dailyfeed.services.timeline.push-pull.limit}")
     private Integer pushPullLimit;
 
-    public DailyfeedScrollResponse<TimelineDto.TimelinePostActivity> getMyFollowingMembersTimeline(Pageable pageable, String token, HttpServletResponse httpServletResponse) {
-        MemberDto.MemberProfile member = memberFeignHelper.getMemberFollowSummary(token, httpServletResponse);
+    public DailyfeedServerResponse<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>> getMyFollowingMembersTimeline(Long memberId, Pageable pageable, String token, HttpServletResponse httpServletResponse) {
+        MemberProfileDto.MemberProfile member = memberFeignHelper.getMemberProfileById(memberId, token, httpServletResponse);
 
-        if(PushPullPredicate.PUSH.equals(checkPushOrPull(member.getFollowingCount()))){
+        if(PushPullPredicate.PUSH.equals(checkPushOrPull(member.getFollowingsCount()))){
             // (1)
             // redis 에서 조회
             List<TimelineDto.TimelinePostActivity> topNResult = timelinePostActivityRedisService.topN(member.getId(), pageable);
@@ -44,23 +44,23 @@ public class TimelineService {
                 List<TimelineDto.TimelinePostActivity> pullActivities = timelinePullService.listMyFollowingActivities(member.getId(), pageable.getPageNumber(), pageable.getPageSize(), 24, token, httpServletResponse);
                 List<TimelineDto.TimelinePostActivity> timelinePostActivities = mergeFeedsWithoutDuplicate(topNResult, pullActivities, pageable.getPageSize());
                 DailyfeedScrollPage<TimelineDto.TimelinePostActivity> slice = timelineMapper.fromTimelineList(timelinePostActivities, pageable);
-                return DailyfeedScrollResponse.<TimelineDto.TimelinePostActivity>builder()
-                        .content(slice)
+                return DailyfeedServerResponse.<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>>builder()
+                        .data(slice)
                         .ok("Y")
                         .reason("SUCCESS")
                         .statusCode("200")
                         .build();
             }
 
-            return DailyfeedScrollResponse.<TimelineDto.TimelinePostActivity>builder()
-                    .content(timelineMapper.fromTimelineList(topNResult, pageable))
+            return DailyfeedServerResponse.<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>>builder()
+                    .data(timelineMapper.fromTimelineList(topNResult, pageable))
                     .ok("Y").reason("SUCCESS").statusCode("200")
                     .build();
         }
         else{ // 실제 데이터를 그대로 pull 해온다.
             List<TimelineDto.TimelinePostActivity> pullActivities = timelinePullService.listHeavyMyFollowingActivities(member, pageable, token, httpServletResponse);
-            return DailyfeedScrollResponse.<TimelineDto.TimelinePostActivity>builder()
-                    .content(timelineMapper.fromTimelineList(pullActivities, pageable))
+            return DailyfeedServerResponse.<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>>builder()
+                    .data(timelineMapper.fromTimelineList(pullActivities, pageable))
                     .ok("Y").reason("SUCCESS").statusCode("200")
                     .build();
         }
