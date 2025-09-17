@@ -112,6 +112,18 @@ infrastructure:
         list-key: POST_ACTIVITY_EVENT_HISTORY
         dead-letter-list-key: POST_ACTIVITY_EVENT_HISTORY_DEAD
         batch-size: 1000
+      post-like-activity-event:
+        list-key: POST_LIKE_ACTIVITY_EVENT_HISTORY
+        dead-letter-list-key: POST_LIKE_ACTIVITY_EVENT_HISTORY_DEAD
+        batch-size: 1000
+      comment-activity-event:
+        list-key: COMMENT_ACTIVITY_EVENT_HISTORY
+        dead-letter-list-key: COMMENT_ACTIVITY_EVENT_HISTORY_DEAD
+        batch-size: 1000
+      comment-like-activity-event:
+        list-key: COMMENT_LIKE_ACTIVITY_EVENT_HISTORY
+        dead-letter-list-key: COMMENT_LIKE_ACTIVITY_EVENT_HISTORY_DEAD
+        batch-size: 1000
   kafka:
     topic:
       post-activity:

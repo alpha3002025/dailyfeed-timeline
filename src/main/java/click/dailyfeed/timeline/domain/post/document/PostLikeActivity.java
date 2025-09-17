@@ -1,7 +1,8 @@
 package click.dailyfeed.timeline.domain.post.document;
 
-import click.dailyfeed.code.domain.content.post.type.PostActivityType;
-import lombok.*;
+import click.dailyfeed.code.domain.content.post.type.PostLikeType;
+import lombok.Builder;
+import lombok.Getter;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
@@ -17,15 +18,11 @@ import java.time.LocalDateTime;
 
 @Getter
 @Builder
-@Document("post_activities")
+@Document("post_like_activities")
 @CompoundIndexes({
-    // 특정 멤버의 팔로잉 활동 조회 (최신순) - is_deleted는 애플리케이션에서 필터링
-    @CompoundIndex(name = "member_created_idx", def = "{'member_id': 1, 'created_at': -1}"),
-
-    // 특정 포스트 관련 팔로잉 활동 조회
-    @CompoundIndex(name = "post_created_idx", def = "{'post_id': 1, 'created_at': -1}"),
+        @CompoundIndex(name = "member_created_idx", def = "{'member_id': 1, 'created_at': -1}"),
 })
-public class PostActivity {
+public class PostLikeActivity {
     @Id
     private ObjectId id;
 
@@ -36,8 +33,8 @@ public class PostActivity {
     @Field("post_id")
     private Long postId;
 
-    @Field("post_activity_type")
-    private PostActivityType postActivityType;
+    @Field("post_like_type")
+    private PostLikeType postLikeType;
 
     @CreatedDate
     @Field("created_at")
@@ -49,21 +46,22 @@ public class PostActivity {
     private LocalDateTime updatedAt;
 
     @PersistenceCreator
-    public PostActivity(
-            ObjectId id, Long memberId, Long postId, PostActivityType postActivityType, LocalDateTime createdAt, LocalDateTime updatedAt
-    ) {
+    public PostLikeActivity(
+            ObjectId id, Long memberId, Long postId, PostLikeType postLikeType, LocalDateTime createdAt, LocalDateTime updatedAt
+    ){
         this.id = id;
         this.memberId = memberId;
         this.postId = postId;
-        this.postActivityType = postActivityType;
+        this.postLikeType = postLikeType;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
     @Builder(builderMethodName = "newDocumentBuilder")
-    public PostActivity(Long memberId, Long postId, PostActivityType postActivityType) {
+    public PostLikeActivity(Long memberId, Long postId, PostLikeType postLikeType) {
         this.memberId = memberId;
         this.postId = postId;
-        this.postActivityType = postActivityType;
+        this.postLikeType = postLikeType;
     }
+
 }

@@ -2,6 +2,7 @@ package click.dailyfeed.timeline.domain.post.mapper;
 
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.timeline.domain.post.document.PostActivity;
+import click.dailyfeed.timeline.domain.post.document.PostLikeActivity;
 import org.mapstruct.Mapper;
 import org.mapstruct.ReportingPolicy;
 
@@ -21,6 +22,14 @@ public interface TimelinePostMapper {
                 .memberId(postActivityEvent.getMemberId())
                 .postId(postActivityEvent.getPostId())
                 .postActivityType(postActivityEvent.getPostActivityType())
+                .build();
+    }
+
+    default PostLikeActivity fromPostLikeActivityEvent(PostDto.LikeActivityEvent likeActivityEvent) {
+        return PostLikeActivity.newDocumentBuilder()
+                .memberId(likeActivityEvent.getMemberId())
+                .postId(likeActivityEvent.getPostId())
+                .postLikeType(likeActivityEvent.getPostLikeType())
                 .build();
     }
 }

@@ -1,5 +1,6 @@
 package click.dailyfeed.timeline.config.redis;
 
+import click.dailyfeed.code.domain.content.comment.dto.CommentDto;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -68,6 +69,31 @@ public class RedisConfig {
     }
 
     @Bean
+    RedisTemplate<String, CommentDto.CommentActivityEvent>  commentActivityEventRedisTemplate(
+            RedisConnectionFactory redisConnectionFactory,
+            @Qualifier("redisCommonObjectMapper") ObjectMapper redisCommonObjectMapper
+    ){
+        RedisTemplate<String, CommentDto.CommentActivityEvent> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
+
+        // Jackson2JsonRedisSerializer 설정
+        Jackson2JsonRedisSerializer<PostDto.PostActivityEvent> jackson2JsonRedisSerializer =
+                new Jackson2JsonRedisSerializer<>(
+                        redisCommonObjectMapper,
+                        PostDto.PostActivityEvent.class
+                );
+
+        // Key는 String으로, Value는 JSON으로 직렬화
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(jackson2JsonRedisSerializer);
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(jackson2JsonRedisSerializer);
+
+        template.afterPropertiesSet();
+        return template;
+    }
+
+    @Bean
     RedisTemplate<String, TimelineDto.TimelinePostActivity> timelinePostActivityRedisTemplate(
             RedisConnectionFactory redisConnectionFactory,
             @Qualifier("redisCommonObjectMapper") ObjectMapper commonObjectMapper
@@ -80,6 +106,56 @@ public class RedisConfig {
                 new Jackson2JsonRedisSerializer<>(
                         commonObjectMapper,
                         TimelineDto.TimelinePostActivity.class
+                );
+
+        // Key는 String으로, Value는 JSON으로 직렬화
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(jackson2JsonRedisSerializer);
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(jackson2JsonRedisSerializer);
+
+        template.afterPropertiesSet();
+        return template;
+    }
+
+    @Bean
+    RedisTemplate<String, PostDto.LikeActivityEvent>  postLikeActivityEventRedisTemplate(
+            RedisConnectionFactory redisConnectionFactory,
+            @Qualifier("redisCommonObjectMapper") ObjectMapper redisCommonObjectMapper
+    ){
+        RedisTemplate<String, PostDto.LikeActivityEvent> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
+
+        // Jackson2JsonRedisSerializer 설정
+        Jackson2JsonRedisSerializer<PostDto.LikeActivityEvent> jackson2JsonRedisSerializer =
+                new Jackson2JsonRedisSerializer<>(
+                        redisCommonObjectMapper,
+                        PostDto.LikeActivityEvent.class
+                );
+
+        // Key는 String으로, Value는 JSON으로 직렬화
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(jackson2JsonRedisSerializer);
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(jackson2JsonRedisSerializer);
+
+        template.afterPropertiesSet();
+        return template;
+    }
+
+    @Bean
+    RedisTemplate<String, CommentDto.LikeActivityEvent>  commentLikeActivityEventRedisTemplate(
+            RedisConnectionFactory redisConnectionFactory,
+            @Qualifier("redisCommonObjectMapper") ObjectMapper redisCommonObjectMapper
+    ){
+        RedisTemplate<String, CommentDto.LikeActivityEvent> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
+
+        // Jackson2JsonRedisSerializer 설정
+        Jackson2JsonRedisSerializer<CommentDto.LikeActivityEvent> jackson2JsonRedisSerializer =
+                new Jackson2JsonRedisSerializer<>(
+                        redisCommonObjectMapper,
+                        CommentDto.LikeActivityEvent.class
                 );
 
         // Key는 String으로, Value는 JSON으로 직렬화

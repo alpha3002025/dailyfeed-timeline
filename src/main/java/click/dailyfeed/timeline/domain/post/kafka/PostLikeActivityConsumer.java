@@ -2,10 +2,10 @@ package click.dailyfeed.timeline.domain.post.kafka;
 
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.global.kafka.type.DateBasedTopicType;
-import click.dailyfeed.timeline.domain.post.document.PostActivity;
+import click.dailyfeed.timeline.domain.post.document.PostLikeActivity;
 import click.dailyfeed.timeline.domain.post.mapper.TimelinePostMapper;
-import click.dailyfeed.timeline.domain.post.redis.PostActivityEventRedisService;
-import click.dailyfeed.timeline.domain.post.repository.mongo.PostActivityMongoRepository;
+import click.dailyfeed.timeline.domain.post.redis.PostLikeActivityEventRedisService;
+import click.dailyfeed.timeline.domain.post.repository.mongo.PostLikeActivityMongoRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -24,23 +24,23 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 @Component
-public class PostActivityConsumer {
-    private final PostActivityMongoRepository postActivityMongoRepository;
-    private final PostActivityEventRedisService postActivityEventRedisService;
+public class PostLikeActivityConsumer {
+    private final PostLikeActivityMongoRepository postLikeActivityMongoRepository;
+    private final PostLikeActivityEventRedisService postLikeActivityEventRedisService;
     private final TimelinePostMapper timelinePostMapper;
 
     @KafkaListener(
-            topicPattern = "post-activity-.*",
-            groupId = "post-activity-consumer-group-1",
-            containerFactory = "postActivityKafkaListenerContainerFactory"
+            topicPattern = DateBasedTopicType.POST_LIKE_ACTIVITY_PATTERN,
+            groupId = "post-like-activity-consumer-group-1",
+            containerFactory = "postLikeActivityKafkaListenerContainerFactory"
     )
     public void consumeAllPostActivityEvents(
-            @Payload PostDto.PostActivityEvent event,
+            @Payload PostDto.LikeActivityEvent event,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset ) {
         // 토픽명에서 날짜 추출
-        String dateStr = DateBasedTopicType.POST_ACTIVITY.extractDateFromTopicName(topic);
+        String dateStr = DateBasedTopicType.POST_LIKE_ACTIVITY.extractDateFromTopicName(topic);
 //        log.info("😀😀😀😀😀 topicName = {}, postId = {}, memberId = {}, followingId = {}, type = {}, createdAt = {}, updatedAt = {}", topic, event.getPostId(), event.getMemberId(), event.getFollowingId(), event.getPostActivityType(), event.getCreatedAt(), event.getUpdatedAt());
 
         if (dateStr != null) {
@@ -57,7 +57,7 @@ public class PostActivityConsumer {
     /**
      * 날짜별 이벤트 처리
      */
-    private void processEventByDate(PostDto.PostActivityEvent event, String dateStr) {
+    private void processEventByDate(PostDto.LikeActivityEvent event, String dateStr) {
         LocalDate eventDate = LocalDate.parse(dateStr, DateTimeFormatter.ofPattern("yyyyMMdd"));
         LocalDate today = LocalDate.now();
 
@@ -75,14 +75,14 @@ public class PostActivityConsumer {
         }
     }
 
-    private void cachingPostActivityEvent(PostDto.PostActivityEvent event) {
+    private void cachingPostActivityEvent(PostDto.LikeActivityEvent event) {
         // 1) Message read
         if (event == null) {
             return;
         }
 
         // 2) cache put
-        postActivityEventRedisService.rPushEvent(event);
+        postLikeActivityEventRedisService.rPushEvent(event);
     }
 
     @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
@@ -90,21 +90,25 @@ public class PostActivityConsumer {
     public void insertMany(){
         // 1초에 한번씩 동작
         while(true){
-            List<PostDto.PostActivityEvent> eventList = postActivityEventRedisService.lPopList();
+            List<PostDto.LikeActivityEvent> eventList = postLikeActivityEventRedisService.lPopList();
             log.info("🔨🔨🔨🔨🔨🔨🔨eventList.size() = {}", eventList.size());
             if(eventList == null || eventList.isEmpty()){
                 break;
             }
             try{
-                List<PostActivity> insertList = eventList.stream().map(timelinePostMapper::fromPostActivityEvent).toList();
-                postActivityMongoRepository.saveAll(insertList);
+                List<PostLikeActivity> insertList = eventList
+                        .stream()
+                        .map(ev -> timelinePostMapper.fromPostLikeActivityEvent(ev))
+                        .toList();
+
+                postLikeActivityMongoRepository.saveAll(insertList);
             }
             catch (Exception e){
                 // kafka DLQ publish
                 // (TODO 구현 예정)
 
                 // redis DLQ caching
-                postActivityEventRedisService.rPushDeadLetterEvent(eventList);
+                postLikeActivityEventRedisService.rPushDeadLetterEvent(eventList);
             }
         }
 
@@ -114,5 +118,4 @@ public class PostActivityConsumer {
         // 후처리가 데이터의 모호함을 만들지 않는다.
 
     }
-
 }

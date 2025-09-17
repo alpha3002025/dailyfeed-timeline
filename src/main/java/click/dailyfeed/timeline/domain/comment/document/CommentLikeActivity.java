@@ -1,7 +1,8 @@
-package click.dailyfeed.timeline.domain.post.document;
+package click.dailyfeed.timeline.domain.comment.document;
 
-import click.dailyfeed.code.domain.content.post.type.PostActivityType;
-import lombok.*;
+import click.dailyfeed.code.domain.content.comment.type.CommentLikeType;
+import lombok.Builder;
+import lombok.Getter;
 import org.bson.types.ObjectId;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
@@ -17,15 +18,11 @@ import java.time.LocalDateTime;
 
 @Getter
 @Builder
-@Document("post_activities")
+@Document("comment_like_activities")
 @CompoundIndexes({
-    // 특정 멤버의 팔로잉 활동 조회 (최신순) - is_deleted는 애플리케이션에서 필터링
-    @CompoundIndex(name = "member_created_idx", def = "{'member_id': 1, 'created_at': -1}"),
-
-    // 특정 포스트 관련 팔로잉 활동 조회
-    @CompoundIndex(name = "post_created_idx", def = "{'post_id': 1, 'created_at': -1}"),
+        @CompoundIndex(name = "member_created_idx", def = "{'member_id': 1, 'created_at': -1}"),
 })
-public class PostActivity {
+public class CommentLikeActivity {
     @Id
     private ObjectId id;
 
@@ -33,11 +30,11 @@ public class PostActivity {
     @Indexed
     private Long memberId;
 
-    @Field("post_id")
-    private Long postId;
+    @Field("comment_id")
+    private Long commentId;
 
-    @Field("post_activity_type")
-    private PostActivityType postActivityType;
+    @Field("comment_like_type")
+    private CommentLikeType commentLikeType;
 
     @CreatedDate
     @Field("created_at")
@@ -49,21 +46,21 @@ public class PostActivity {
     private LocalDateTime updatedAt;
 
     @PersistenceCreator
-    public PostActivity(
-            ObjectId id, Long memberId, Long postId, PostActivityType postActivityType, LocalDateTime createdAt, LocalDateTime updatedAt
-    ) {
+    public CommentLikeActivity(
+            ObjectId id, Long memberId, Long commentId, CommentLikeType commentLikeType, LocalDateTime createdAt, LocalDateTime updatedAt
+    ){
         this.id = id;
         this.memberId = memberId;
-        this.postId = postId;
-        this.postActivityType = postActivityType;
+        this.commentId = commentId;
+        this.commentLikeType = commentLikeType;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
     @Builder(builderMethodName = "newDocumentBuilder")
-    public PostActivity(Long memberId, Long postId, PostActivityType postActivityType) {
+    public CommentLikeActivity(Long memberId, Long commentId, CommentLikeType commentLikeType) {
         this.memberId = memberId;
-        this.postId = postId;
-        this.postActivityType = postActivityType;
+        this.commentId = commentId;
+        this.commentLikeType = commentLikeType;
     }
 }

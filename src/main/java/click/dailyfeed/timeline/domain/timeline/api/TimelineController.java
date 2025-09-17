@@ -3,7 +3,6 @@ package click.dailyfeed.timeline.domain.timeline.api;
 import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.global.web.response.DailyfeedScrollPage;
-import click.dailyfeed.code.global.web.response.DailyfeedScrollResponse;
 import click.dailyfeed.code.global.web.response.DailyfeedServerResponse;
 import click.dailyfeed.feign.config.web.AuthenticatedMember;
 import click.dailyfeed.timeline.domain.timeline.service.TimelineService;
@@ -29,7 +28,7 @@ public class TimelineController {
             HttpServletResponse response,
             @PageableDefault(size = 20, sort = "updatedAt") Pageable pageable
     ){
-        return timelineService.getMyFollowingMembersTimeline(pageable, token, response);
+        return timelineService.getMyFollowingMembersTimeline(member.getId(), pageable, token, response);
     }
 
 

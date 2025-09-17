@@ -1,6 +1,5 @@
 package click.dailyfeed.timeline.domain.post.repository.mongo;
 
-import click.dailyfeed.code.domain.content.post.type.PostActivityType;
 import click.dailyfeed.timeline.domain.post.document.PostActivity;
 import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
@@ -12,18 +11,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PostActivityMongoRepository extends MongoRepository<PostActivity, ObjectId> {
-
-    Page<PostActivity> findByFollowingIdAndPostActivityTypeNotContainsOrderByUpdatedAtDesc(
-            Long followingId,
-            PostActivityType activityType,
-            Pageable pageable);
-
-    @Query(value = "{ 'followingId': ?0, 'postActivityType': { $ne: ?1 } }",
-            sort = "{ 'updatedAt': -1 }")
-    Page<PostActivity> findByFollowingIdAndActivityTypeNotEquals(
-            Long followingId,
-            PostActivityType activityType,
-            Pageable pageable);
 
     @Query("{ 'member_id': { $in: ?0 }, 'activityType': { $in: ['CREATE', 'UPDATE'] }, 'createdAt': { $gte: ?1 } }")
     Page<PostActivity> findFollowingActivitiesWhereFollowingIdsIn(List<Long> followingIds, LocalDateTime since, Pageable pageable);
