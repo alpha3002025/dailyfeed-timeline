@@ -1,6 +1,6 @@
 package click.dailyfeed.timeline.domain.timeline.mapper;
 
-import click.dailyfeed.code.global.web.response.DailyfeedScrollPage;
+import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import org.mapstruct.Mapper;
 import org.mapstruct.ReportingPolicy;
 import org.springframework.data.domain.Pageable;

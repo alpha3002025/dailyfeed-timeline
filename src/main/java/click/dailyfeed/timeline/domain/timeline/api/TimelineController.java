@@ -2,7 +2,7 @@ package click.dailyfeed.timeline.domain.timeline.api;
 
 import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
-import click.dailyfeed.code.global.web.response.DailyfeedScrollPage;
+import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.code.global.web.response.DailyfeedServerResponse;
 import click.dailyfeed.feign.config.web.AuthenticatedMember;
 import click.dailyfeed.timeline.domain.timeline.service.TimelineService;

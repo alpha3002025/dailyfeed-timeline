@@ -3,7 +3,8 @@ package click.dailyfeed.timeline.domain.timeline.service;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.domain.timeline.timeline.predicate.PushPullPredicate;
-import click.dailyfeed.code.global.web.response.DailyfeedScrollPage;
+import click.dailyfeed.code.global.web.code.ResponseSuccessCode;
+import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.code.global.web.response.DailyfeedServerResponse;
 import click.dailyfeed.feign.domain.member.MemberFeignHelper;
 import click.dailyfeed.timeline.domain.post.repository.mongo.PostActivityMongoRepository;
@@ -13,6 +14,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -46,22 +48,23 @@ public class TimelineService {
                 DailyfeedScrollPage<TimelineDto.TimelinePostActivity> slice = timelineMapper.fromTimelineList(timelinePostActivities, pageable);
                 return DailyfeedServerResponse.<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>>builder()
                         .data(slice)
-                        .ok("Y")
-                        .reason("SUCCESS")
-                        .statusCode("200")
+                        .result(ResponseSuccessCode.SUCCESS)
+                        .status(HttpStatus.OK.value())
                         .build();
             }
 
             return DailyfeedServerResponse.<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>>builder()
                     .data(timelineMapper.fromTimelineList(topNResult, pageable))
-                    .ok("Y").reason("SUCCESS").statusCode("200")
+                    .result(ResponseSuccessCode.SUCCESS)
+                    .status(HttpStatus.OK.value())
                     .build();
         }
         else{ // 실제 데이터를 그대로 pull 해온다.
             List<TimelineDto.TimelinePostActivity> pullActivities = timelinePullService.listHeavyMyFollowingActivities(member, pageable, token, httpServletResponse);
             return DailyfeedServerResponse.<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>>builder()
                     .data(timelineMapper.fromTimelineList(pullActivities, pageable))
-                    .ok("Y").reason("SUCCESS").statusCode("200")
+                    .result(ResponseSuccessCode.SUCCESS)
+                    .status(HttpStatus.OK.value())
                     .build();
         }
     }
