@@ -4,11 +4,11 @@ spring:
   ## database connection
   datasource:
     driver-class-name: com.mysql.jdbc.Driver
-    url: ${MYSQL_JDBC_URL}
+    url: ${MYSQL_JDBC_URL:jdbc:mysql://localhost:23306/dailyfeed?characterEncoding=UTF-8&serverTimezone=UTC&rewriteBatchedStatements=true}
     username: ${MYSQL_USERNAME:dailyfeed}
     password: ${MYSQL_PASSWORD:hitEnter###}
     hikari:
-      jdbc-url: ${MYSQL_JDBC_URL}
+      jdbc-url: ${MYSQL_JDBC_URL:jdbc:mysql://localhost:23306/dailyfeed?characterEncoding=UTF-8&serverTimezone=UTC&rewriteBatchedStatements=true}
       driver-class-name: com.mysql.jdbc.Driver
       username: ${MYSQL_USERNAME:dailyfeed}
       password: ${MYSQL_PASSWORD:hitEnter###}
@@ -31,11 +31,11 @@ spring:
         max-page-size: 100
         default-page-size: 20
     redis:
-      port: ${REDIS_PORT:6379}
-      host: ${REDIS_HOST:redis-master.infra.svc.cluster.local}
+      port: ${REDIS_PORT:26379}
+      host: ${REDIS_HOST:localhost}
     mongodb:
       protocol: mongodb # mongodb+srv or mongodb (atlas 에서만 mongodb+srv)
-      uri: ${MONGODB_CONNECTION_URI:mongodb://dailyfeed:hitEnter###@mongodb.infra.svc.cluster.local:27017/dailyfeed}
+      uri: ${MONGODB_CONNECTION_URI:mongodb://dailyfeed:hitEnter###@localhost:27017/dailyfeed}
   ## kafka
   kafka:
     bootstrap-servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:9092}
