@@ -33,7 +33,8 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @ComponentScan(basePackages = {
         "click.dailyfeed.feign",
         "click.dailyfeed.timeline",
-        "click.dailyfeed.pagination"
+        "click.dailyfeed.pagination",
+        "click.dailyfeed.redis"
 })
 public class TimelineApplication {
 

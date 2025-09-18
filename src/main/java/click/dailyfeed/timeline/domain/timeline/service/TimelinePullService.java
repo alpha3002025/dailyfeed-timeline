@@ -3,6 +3,7 @@ package click.dailyfeed.timeline.domain.timeline.service;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
+import click.dailyfeed.code.global.cache.RedisKeyConstant;
 import click.dailyfeed.feign.domain.member.MemberFeignHelper;
 import click.dailyfeed.feign.domain.post.PostFeignHelper;
 import click.dailyfeed.timeline.domain.post.document.PostActivity;
@@ -30,7 +31,7 @@ public class TimelinePullService {
     private final PostFeignHelper postFeignHelper;
     private final TimelinePostActivityRedisService timelinePostActivityRedisService;
 
-    @Cacheable(value = "followingsActivities", key="#userId + '_' + #page + '_' + #size + '_' + #hours", unless = "#result.isEmpty()")
+    @Cacheable(value = RedisKeyConstant.TimelineService.WEB_GET_TIMELINE_ITEMS_DEFAULT, key="#userId + '_' + #page + '_' + #size + '_' + #hours", unless = "#result.isEmpty()")
     public List<TimelineDto.TimelinePostActivity> listMyFollowingActivities(Long userId, int page, int size, int hours, String token, HttpServletResponse httpResponse) {
         List<MemberProfileDto.Summary> members = fetchMyFollowingMembers(token, httpResponse); /// 여기서 MemberDto.Summary 또는 FollowDto.Following 으로 들고오면, 뒤에서 MemberMap API 로 구할 필요가 없다.
 
@@ -50,7 +51,7 @@ public class TimelinePullService {
         Map<Long, MemberProfileDto.Summary> memberMap = memberFeignHelper.getMemberMap(authorIds, httpResponse);
 
         ///  get Post Map (id = PostId)
-        Set<Long> postIds = activities.stream().map(PostActivity::getPostId).collect(Collectors.toSet());
+        Set<Long> postIds = activities.getContent().stream().map(PostActivity::getPostId).collect(Collectors.toSet());
         PostDto.PostsBulkRequest request = PostDto.PostsBulkRequest.builder().ids(postIds).build();
         Map<Long, PostDto.Post> postMap = postFeignHelper.getPostMap(request, token, httpResponse);
 
