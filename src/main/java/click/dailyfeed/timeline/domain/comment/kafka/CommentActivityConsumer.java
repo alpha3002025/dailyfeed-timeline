@@ -91,11 +91,11 @@ public class CommentActivityConsumer {
         // 1초에 한번씩 동작
         while(true){
             List<CommentDto.CommentActivityEvent> eventList = commentActivityEventRedisService.lPopList();
-            log.info("🔨🔨🔨🔨🔨🔨🔨eventList.size() = {}", eventList.size());
             if(eventList == null || eventList.isEmpty()){
                 break;
             }
             try{
+                log.info("🔨🔨🔨🔨🔨🔨🔨eventList.size() = {}", eventList.size());
                 List<CommentActivity> insertList = eventList.stream().map(timelineCommentMapper::fromCommentActivityEvent).toList();
                 commentActivityMongoRepository.saveAll(insertList);
             }

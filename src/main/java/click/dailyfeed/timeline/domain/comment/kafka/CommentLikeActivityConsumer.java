@@ -91,11 +91,11 @@ public class CommentLikeActivityConsumer {
         // 1초에 한번씩 동작
         while(true){
             List<CommentDto.LikeActivityEvent> eventList = commentLikeActivityEventRedisService.lPopList();
-            log.info("🔨🔨🔨🔨🔨🔨🔨eventList.size() = {}", eventList.size());
             if(eventList == null || eventList.isEmpty()){
                 break;
             }
             try{
+                log.info("🔨🔨🔨🔨🔨🔨🔨eventList.size() = {}", eventList.size());
                 List<CommentLikeActivity> insertList = eventList
                         .stream()
                         .map(ev -> timelineCommentMapper.fromCommentLikeActivityEvent(ev))

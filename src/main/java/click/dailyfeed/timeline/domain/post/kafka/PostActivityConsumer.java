@@ -91,11 +91,11 @@ public class PostActivityConsumer {
         // 1초에 한번씩 동작
         while(true){
             List<PostDto.PostActivityEvent> eventList = postActivityEventRedisService.lPopList();
-            log.info("🔨🔨🔨🔨🔨🔨🔨eventList.size() = {}", eventList.size());
             if(eventList == null || eventList.isEmpty()){
                 break;
             }
             try{
+                log.info("🔨🔨🔨🔨🔨🔨🔨eventList.size() = {}", eventList.size());
                 List<PostActivity> insertList = eventList.stream().map(timelinePostMapper::fromPostActivityEvent).toList();
                 postActivityMongoRepository.saveAll(insertList);
             }

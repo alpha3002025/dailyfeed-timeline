@@ -91,11 +91,11 @@ public class PostLikeActivityConsumer {
         // 1초에 한번씩 동작
         while(true){
             List<PostDto.LikeActivityEvent> eventList = postLikeActivityEventRedisService.lPopList();
-            log.info("🔨🔨🔨🔨🔨🔨🔨eventList.size() = {}", eventList.size());
             if(eventList == null || eventList.isEmpty()){
                 break;
             }
             try{
+                log.info("🔨🔨🔨🔨🔨🔨🔨eventList.size() = {}", eventList.size());
                 List<PostLikeActivity> insertList = eventList
                         .stream()
                         .map(ev -> timelinePostMapper.fromPostLikeActivityEvent(ev))
