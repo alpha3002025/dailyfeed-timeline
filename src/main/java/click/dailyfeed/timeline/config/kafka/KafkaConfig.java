@@ -1,13 +1,11 @@
 package click.dailyfeed.timeline.config.kafka;
 
-import click.dailyfeed.code.domain.content.comment.dto.CommentDto;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
@@ -17,20 +15,12 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 import java.util.HashMap;
 import java.util.Map;
 
-@Configuration
+// TODO : 동작 확인 후 삭제할것 🥤
+//@Configuration
 public class KafkaConfig {
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
-
-    @Value("${infrastructure.kafka.topic.post-activity.prefix}")
-    private String postActivityPrefix;
-
-    @Value("${infrastructure.kafka.topic.post-activity.prefix-date-format}")
-    private String dateFormat;
-
-    @Value("${infrastructure.kafka.topic.post-activity.retention-ms:604800000}")
-    private String retentionMs;
 
     @Value("${KAFKA_USER:}")
     private String kafkaUser;
@@ -95,87 +85,6 @@ public class KafkaConfig {
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, MemberDto.MemberActivity> memberActivityKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, MemberDto.MemberActivity> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(userActivityConsumerFactory());
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        factory.setConcurrency(3); // 동시 처리 스레드 수
-        return factory;
-    }
 
 
-    @Bean
-    public ConsumerFactory<String, PostDto.LikeActivityEvent> postLikeActivityConsumerFactory() {
-        Map<String, Object> props = getCommonConsumerProps();
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "comment-like-activity-consumer-group");
-        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, PostDto.LikeActivityEvent.class.getName());
-        return new DefaultKafkaConsumerFactory<>(props);
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, PostDto.LikeActivityEvent> postLikeActivityKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, PostDto.LikeActivityEvent> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(postLikeActivityConsumerFactory());
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        factory.setConcurrency(3); // 동시 처리 스레드 수
-        return factory;
-    }
-
-    @Bean
-    public ConsumerFactory<String, CommentDto.LikeActivityEvent> commentLikeActivityConsumerFactory() {
-        Map<String, Object> props = getCommonConsumerProps();
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "comment-like-activity-consumer-group");
-        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, CommentDto.LikeActivityEvent.class.getName());
-        return new DefaultKafkaConsumerFactory<>(props);
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, CommentDto.LikeActivityEvent> commentLikeActivityKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, CommentDto.LikeActivityEvent> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(commentLikeActivityConsumerFactory());
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        factory.setConcurrency(3); // 동시 처리 스레드 수
-        return factory;
-    }
-
-
-
-
-    // Admin Configuration - local 프로필에서는 비활성화
-    // @Bean
-    // public KafkaAdmin kafkaAdmin() {
-    //     Map<String, Object> configs = new HashMap<>();
-    //     configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-    //     return new KafkaAdmin(configs);
-    // }
-
-    // Topic 생성 (현재 날짜 기준) - local 프로필에서는 비활성화
-    // @Bean
-    // public NewTopic todayPostActivityTopic() {
-    //     String today = LocalDate.now().format(DateTimeFormatter.ofPattern(dateFormat));
-    //     String topicName = postActivityPrefix + today;
-
-    //     // config
-    //     Map<String, String> props = new HashMap<>();
-    //     props.put(TopicConfig.RETENTION_MS_CONFIG, retentionMs);
-
-    //     return new NewTopic(topicName, 3, (short) 1).configs(props);
-    // }
-
-    // Topic 생성 (어제 날짜 기준 - 테스트용) - local 프로필에서는 비활성화
-    // @Bean
-    // public NewTopic yesterdayPostActivityTopic() {
-    //     String yesterday = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern(dateFormat));
-    //     String topicName = postActivityPrefix + yesterday;
-
-    //     // config
-    //     Map<String, String> props = new HashMap<>();
-    //     props.put(TopicConfig.RETENTION_MS_CONFIG, retentionMs);
-
-    //     return new NewTopic(topicName, 3, (short) 1).configs(props);
-    // }
 }

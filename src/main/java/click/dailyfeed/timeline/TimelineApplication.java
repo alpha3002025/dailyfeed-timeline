@@ -34,7 +34,8 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
         "click.dailyfeed.feign",
         "click.dailyfeed.timeline",
         "click.dailyfeed.pagination",
-        "click.dailyfeed.redis"
+        "click.dailyfeed.redis",
+        "click.dailyfeed.kafka",
 })
 public class TimelineApplication {
 
