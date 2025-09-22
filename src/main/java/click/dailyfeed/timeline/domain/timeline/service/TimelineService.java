@@ -47,14 +47,14 @@ public class TimelineService {
                 List<TimelineDto.TimelinePostActivity> timelinePostActivities = mergeFeedsWithoutDuplicate(topNResult, pullActivities, pageable.getPageSize());
                 DailyfeedScrollPage<TimelineDto.TimelinePostActivity> slice = timelineMapper.fromTimelineList(timelinePostActivities, pageable);
                 return DailyfeedServerResponse.<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>>builder()
-                        .content(slice)
+                        .data(slice)
                         .result(ResponseSuccessCode.SUCCESS)
                         .status(HttpStatus.OK.value())
                         .build();
             }
 
             return DailyfeedServerResponse.<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>>builder()
-                    .content(timelineMapper.fromTimelineList(topNResult, pageable))
+                    .data(timelineMapper.fromTimelineList(topNResult, pageable))
                     .result(ResponseSuccessCode.SUCCESS)
                     .status(HttpStatus.OK.value())
                     .build();
@@ -62,7 +62,7 @@ public class TimelineService {
         else{ // 실제 데이터를 그대로 pull 해온다.
             List<TimelineDto.TimelinePostActivity> pullActivities = timelinePullService.listHeavyMyFollowingActivities(member, pageable, token, httpServletResponse);
             return DailyfeedServerResponse.<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>>builder()
-                    .content(timelineMapper.fromTimelineList(pullActivities, pageable))
+                    .data(timelineMapper.fromTimelineList(pullActivities, pageable))
                     .result(ResponseSuccessCode.SUCCESS)
                     .status(HttpStatus.OK.value())
                     .build();
