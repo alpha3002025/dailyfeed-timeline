@@ -164,6 +164,13 @@ infrastructure:
         dead-letter-list-key: COMMENT_LIKE_ACTIVITY_EVENT_HISTORY_DEAD
         batch-size: 1000
   kafka:
+    default:
+      producer:
+        partition: 6
+        replication-factor: 2
+        compression: snappy
+        retention-ms: 604800000 # 7일
+        operation-timeout-seconds: 30
     topic:
       post-activity:
         prefix: post-activity-
