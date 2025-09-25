@@ -12,7 +12,7 @@ POST http://localhost:8084{{case1Path}}/login
 Content-Type: application/json
 
 {
-  "email": "case3_C@gmail.com",
+  "email": "case3_A@gmail.com",
   "password": "Password123!@#$"
 }
 

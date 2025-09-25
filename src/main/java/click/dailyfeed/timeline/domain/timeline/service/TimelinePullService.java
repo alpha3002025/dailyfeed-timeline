@@ -45,10 +45,9 @@ public class TimelinePullService {
         Pageable pageable = PageRequest.of(page, size);
 
         Page<PostActivity> activities = postActivityMongoRepository.findFollowingActivitiesWhereFollowingIdsIn(followingIds, since, pageable);
-        Set<Long> authorIds = activities.stream().map(PostActivity::getMemberId).collect(Collectors.toSet());
-
-        ///  get Member Map (id = Member Id)
-        Map<Long, MemberProfileDto.Summary> memberMap = members.stream().collect(Collectors.toMap(ms -> ms.getMemberId(), ms -> ms));
+        if (activities.isEmpty()) {
+            return List.of();
+        }
 
         ///  get Post Map (id = PostId)
         Set<Long> postIds = activities.getContent().stream().map(PostActivity::getPostId).collect(Collectors.toSet());
@@ -57,14 +56,14 @@ public class TimelinePullService {
 
         return activities.stream()
                 .map(activity -> {
-                    final MemberProfileDto.Summary m = memberMap.get(activity.getMemberId());
                     final PostDto.Post p = postMap.get(activity.getPostId());
                     return TimelineDto.TimelinePostActivity
                             .builder()
                             .id(activity.getId().toString())
                             .postId(activity.getPostId())
                             .authorId(activity.getMemberId())
-                            .authorUsername(m.getMemberName())
+                            .authorName(p.getAuthorName())
+                            .memberHandle(p.getAuthorHandle())
                             .activityType(activity.getPostActivityType().getActivityName())
                             .createdAt(activity.getCreatedAt())
                             .title(p.getTitle())
