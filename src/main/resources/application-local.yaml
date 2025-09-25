@@ -52,8 +52,7 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-#        spring.json.trusted.packages: "click.dailyfeed.code.domain.content,click.dailyfeed.code.domain.member"
-        spring.json.trusted.packages: "*"
+        spring.json.trusted.packages: "click.dailyfeed.code.domain.content,click.dailyfeed.code.domain.member"
         session.timeout.ms: 30000
         heartbeat.interval.ms: 10000
         max.poll.interval.ms: 300000
@@ -69,20 +68,13 @@ spring:
       buffer-memory: 33554432
       compression-type: snappy
       properties:
-        enable.idempotence: true
+        enable.idempotence: false
         max.in.flight.requests.per.connection: 5
         spring.json.add.type.headers: false
-#        spring.json.trusted.packages: "click.dailyfeed.code.domain.content.post.dto"
+        #        spring.json.trusted.packages: "click.dailyfeed.code.domain.content.post.dto"
         spring.json.trusted.packages: "*"
         retry.backoff.ms: 100
         request.timeout.ms: 30000
-    properties:
-      security:
-        protocol: ${KAFKA_SASL_PROTOCOL}
-      sasl:
-        mechanism: ${KAFKA_SASL_MECHANISM}
-        jaas:
-          config: org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_USER}" password="${KAFKA_PASSWORD}";
 
 springdoc:
   packages-to-scan: click.dailyfeed.timeline.domain
