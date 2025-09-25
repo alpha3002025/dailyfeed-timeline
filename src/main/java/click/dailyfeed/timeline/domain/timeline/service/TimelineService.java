@@ -6,8 +6,6 @@ import click.dailyfeed.code.domain.timeline.timeline.predicate.PushPullPredicate
 import click.dailyfeed.code.global.web.code.ResponseSuccessCode;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.code.global.web.response.DailyfeedServerResponse;
-import click.dailyfeed.feign.domain.member.MemberFeignHelper;
-import click.dailyfeed.timeline.domain.post.repository.mongo.PostActivityMongoRepository;
 import click.dailyfeed.timeline.domain.timeline.mapper.TimelineMapper;
 import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostActivityRedisService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,8 +21,6 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 @Service
 public class TimelineService {
-    private final PostActivityMongoRepository postActivityMongoRepository;
-    private final MemberFeignHelper memberFeignHelper;
     private final TimelinePostActivityRedisService timelinePostActivityRedisService;
     private final TimelinePullService timelinePullService;
     private final TimelineMapper timelineMapper;
@@ -40,7 +36,7 @@ public class TimelineService {
 
             // (2)
             // 부족할 경우 pull 데이터로 보완
-            if(topNResult.size() >= pageable.getPageSize()){
+            if(topNResult.size() < pageable.getPageSize()){
                 List<TimelineDto.TimelinePostActivity> pullActivities = timelinePullService.listMyFollowingActivities(member.getId(), pageable.getPageNumber(), pageable.getPageSize(), 24, token, httpServletResponse);
                 List<TimelineDto.TimelinePostActivity> timelinePostActivities = mergeFeedsWithoutDuplicate(topNResult, pullActivities, pageable.getPageSize());
                 DailyfeedScrollPage<TimelineDto.TimelinePostActivity> slice = timelineMapper.fromTimelineList(timelinePostActivities, pageable);

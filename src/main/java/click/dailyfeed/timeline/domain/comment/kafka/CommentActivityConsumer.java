@@ -30,9 +30,9 @@ public class CommentActivityConsumer {
     private final TimelineCommentMapper timelineCommentMapper;
 
     @KafkaListener(
-            topicPattern = "post-activity-.*",
-            groupId = "post-activity-consumer-group-1",
-            containerFactory = "postActivityKafkaListenerContainerFactory"
+            topicPattern = "comment-activity-.*",
+            groupId = "comment-activity-consumer-group-1",
+            containerFactory = "commentActivityKafkaListenerContainerFactory"
     )
     public void consumeAllPostActivityEvents(
             @Payload CommentDto.CommentActivityEvent event,

@@ -1,11 +1,9 @@
 package click.dailyfeed.timeline.domain.timeline.api;
 
-import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.code.global.web.response.DailyfeedServerResponse;
-import click.dailyfeed.feign.config.web.annotation.AuthenticatedMember;
 import click.dailyfeed.feign.config.web.annotation.AuthenticatedMemberProfile;
 import click.dailyfeed.timeline.domain.timeline.service.TimelineService;
 import jakarta.servlet.http.HttpServletResponse;

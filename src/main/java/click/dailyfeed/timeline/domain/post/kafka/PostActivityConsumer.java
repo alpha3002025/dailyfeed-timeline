@@ -41,8 +41,6 @@ public class PostActivityConsumer {
             @Header(KafkaHeaders.OFFSET) long offset ) {
         // 토픽명에서 날짜 추출
         String dateStr = DateBasedTopicType.POST_ACTIVITY.extractDateFromTopicName(topic);
-//        log.info("😀😀😀😀😀 topicName = {}, postId = {}, memberId = {}, followingId = {}, type = {}, createdAt = {}, updatedAt = {}", topic, event.getPostId(), event.getMemberId(), event.getFollowingId(), event.getPostActivityType(), event.getCreatedAt(), event.getUpdatedAt());
-
         if (dateStr != null) {
             // 날짜 형식 검증 (yyyyMMdd 형식인지 확인)
             if (dateStr.matches("\\d{8}")) { // 날짜 타입 처리
