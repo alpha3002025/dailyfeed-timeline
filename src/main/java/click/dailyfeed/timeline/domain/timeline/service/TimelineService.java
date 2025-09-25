@@ -32,9 +32,7 @@ public class TimelineService {
     @Value("${dailyfeed.services.timeline.push-pull.limit}")
     private Integer pushPullLimit;
 
-    public DailyfeedServerResponse<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>> getMyFollowingMembersTimeline(Long memberId, Pageable pageable, String token, HttpServletResponse httpServletResponse) {
-        MemberProfileDto.MemberProfile member = memberFeignHelper.getMemberProfileById(memberId, token, httpServletResponse);
-
+    public DailyfeedServerResponse<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>> getMyFollowingMembersTimeline(MemberProfileDto.MemberProfile member, Pageable pageable, String token, HttpServletResponse httpServletResponse) {
         if(PushPullPredicate.PUSH.equals(checkPushOrPull(member.getFollowingsCount()))){
             // (1)
             // redis 에서 조회

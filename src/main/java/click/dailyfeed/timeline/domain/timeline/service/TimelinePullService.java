@@ -48,7 +48,7 @@ public class TimelinePullService {
         Set<Long> authorIds = activities.stream().map(PostActivity::getMemberId).collect(Collectors.toSet());
 
         ///  get Member Map (id = Member Id)
-        Map<Long, MemberProfileDto.Summary> memberMap = memberFeignHelper.getMemberMap(authorIds, httpResponse);
+        Map<Long, MemberProfileDto.Summary> memberMap = memberFeignHelper.getMemberMap(authorIds, token, httpResponse);
 
         ///  get Post Map (id = PostId)
         Set<Long> postIds = activities.getContent().stream().map(PostActivity::getPostId).collect(Collectors.toSet());
