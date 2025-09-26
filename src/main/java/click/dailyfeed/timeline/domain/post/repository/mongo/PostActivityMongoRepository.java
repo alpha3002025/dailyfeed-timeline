@@ -12,6 +12,6 @@ import java.util.List;
 
 public interface PostActivityMongoRepository extends MongoRepository<PostActivity, ObjectId> {
 
-    @Query("{ 'member_id': { $in: ?0 }, 'post_activity_type': { $in: ['CREATE', 'UPDATE'] }, 'created_at': { $gte: ?1 } }")
+    @Query("{ 'member_id': { $in: ?0 }, 'post_activity_type': { $in: ['CREATE'] }, 'created_at': { $gte: ?1 } }")
     Page<PostActivity> findFollowingActivitiesWhereFollowingIdsIn(List<Long> followingIds, LocalDateTime since, Pageable pageable);
 }

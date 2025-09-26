@@ -57,6 +57,21 @@ public class TimelinePullService {
         return activities.stream()
                 .map(activity -> {
                     final PostDto.Post p = postMap.get(activity.getPostId());
+                    if (p == null) { // 애플리케이션 재기동시 MySQL 날라갔을때 증상
+                        // Return a minimal activity object when post is not found
+                        return TimelineDto.TimelinePostActivity
+                                .builder()
+                                .id(activity.getId().toString())
+                                .postId(activity.getPostId())
+                                .authorId(activity.getMemberId())
+                                .authorName("Unknown")
+                                .memberHandle("unknown")
+                                .activityType(activity.getPostActivityType().getActivityName())
+                                .createdAt(activity.getCreatedAt())
+                                .title("[Post not found]")
+                                .content("")
+                                .build();
+                    }
                     return TimelineDto.TimelinePostActivity
                             .builder()
                             .id(activity.getId().toString())

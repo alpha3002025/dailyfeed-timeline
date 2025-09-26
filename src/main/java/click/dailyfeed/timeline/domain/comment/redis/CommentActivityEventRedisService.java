@@ -42,4 +42,14 @@ public class CommentActivityEventRedisService {
         List<CommentDto.CommentActivityEvent> result = redisTemplate.opsForList().rightPop(deadLetterKey, batchSize);
         return result != null? result : List.of();
     }
+
+    public Long getQueueSize() {
+        Long size = redisTemplate.opsForList().size(redisKey);
+        return size != null ? size : 0L;
+    }
+
+    public Long getDeadLetterQueueSize() {
+        Long size = redisTemplate.opsForList().size(deadLetterKey);
+        return size != null ? size : 0L;
+    }
 }

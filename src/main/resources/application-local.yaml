@@ -45,7 +45,6 @@ spring:
       poll-timeout: 3000
       missing-topics-fatal: false  # 토픽이 없어도 시작 가능
     consumer:
-      group-id: ${spring.application.name}-group
       auto-offset-reset: latest
       enable-auto-commit: false # At Least Once 를 위한 수동 커밋
       max-poll-records: 500
@@ -96,6 +95,8 @@ springdoc:
 logging:
   level:
     click.dailyfeed.timeline.client: DEBUG
+    click.dailyfeed.timeline.domain.post.kafka: DEBUG
+    click.dailyfeed.timeline.domain.comment.kafka: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.kafka: INFO
