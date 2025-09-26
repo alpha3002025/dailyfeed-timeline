@@ -1,22 +1,15 @@
 package click.dailyfeed.timeline.domain.post.mapper;
 
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
+import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.timeline.domain.post.document.PostActivity;
 import click.dailyfeed.timeline.domain.post.document.PostLikeActivity;
+import click.dailyfeed.timeline.domain.post.entity.Post;
 import org.mapstruct.Mapper;
 import org.mapstruct.ReportingPolicy;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface TimelinePostMapper {
-
-//    @Mapping(source = "postActivityEvent.memberId", target = "memberId")
-//    @Mapping(source = "postActivityEvent.followingId", target = "followingId")
-//    @Mapping(source = "postActivityEvent.postId", target = "postId")
-//    @Mapping(source = "postActivityEvent.postActivityType", target = "postActivityType")
-//    @Mapping(source = "postActivityEvent.createdAt", target = "createdAt")
-//    @Mapping(source = "postActivityEvent.updatedAt", target = "updatedAt")
-//    PostActivity fromPostActivityEvent(PostDto.PostActivityEvent postActivityEvent);
-
     default PostActivity fromPostActivityEvent(PostDto.PostActivityEvent postActivityEvent) {
         return PostActivity.newDocumentBuilder()
                 .memberId(postActivityEvent.getMemberId())
@@ -30,6 +23,22 @@ public interface TimelinePostMapper {
                 .memberId(likeActivityEvent.getMemberId())
                 .postId(likeActivityEvent.getPostId())
                 .postLikeType(likeActivityEvent.getPostLikeType())
+                .build();
+    }
+
+    default PostDto.Post toPostDto(Post post, MemberProfileDto.Summary author, Integer commentCount) {
+        return PostDto.Post.builder()
+                .id(post.getId())
+                .title(post.getTitle())
+                .content(post.getContent())
+                .authorId(author.getId())
+                .authorName(author.getDisplayName())
+                .authorHandle(author.getMemberHandle())
+                .viewCount(post.getViewCount())
+                .likeCount(post.getLikeCount())
+                .commentCount(commentCount)
+                .createdAt(post.getCreatedAt())
+                .updatedAt(post.getUpdatedAt())
                 .build();
     }
 }

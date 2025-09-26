@@ -1,10 +1,13 @@
 package click.dailyfeed.timeline.domain.timeline.service;
 
+import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.domain.timeline.timeline.predicate.PushPullPredicate;
 import click.dailyfeed.code.global.web.code.ResponseSuccessCode;
+import click.dailyfeed.code.global.web.page.DailyfeedPage;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
+import click.dailyfeed.code.global.web.response.DailyfeedScrollResponse;
 import click.dailyfeed.code.global.web.response.DailyfeedServerResponse;
 import click.dailyfeed.timeline.domain.timeline.mapper.TimelineMapper;
 import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostActivityRedisService;
@@ -15,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -63,6 +67,22 @@ public class TimelineService {
         }
     }
 
+    public DailyfeedScrollPage<PostDto.Post> getPostsOrderByCommentCount(Pageable pageable, String token, HttpServletResponse httpResponse){
+        return timelinePullService.getPostsOrderByCommentCount(pageable, token, httpResponse);
+    }
+
+    public DailyfeedScrollPage<PostDto.Post> getPopularPosts(Pageable pageable, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getPopularPosts(pageable, token, httpResponse);
+    }
+
+    public DailyfeedScrollPage<PostDto.Post> getPostsByRecentActivity(Pageable pageable, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getPostsByRecentActivity(pageable, token, httpResponse);
+    }
+
+    public DailyfeedPage<PostDto.Post> getPostsByDateRange(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getPostsByDateRange(startDate, endDate, pageable, token, httpResponse);
+    }
+
     private PushPullPredicate checkPushOrPull(Long followingCount) {
         if(followingCount == null || followingCount <= 0){
             return PushPullPredicate.PUSH;
@@ -85,6 +105,4 @@ public class TimelineService {
                 .limit(size)
                 .toList();
     }
-
-
 }

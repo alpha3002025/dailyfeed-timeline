@@ -69,3 +69,34 @@ Content-Type: application/json
 GET {{baseUrl}}{{case2Path}}
 Authorization: Bearer {{accessToken}}
 
+
+
+###############################################################################
+### 3. 댓글 많은 글들
+###############################################################################
+@case3Path = /api/timeline/posts/most-commented
+
+### 3. 댓글 많은 글들
+GET {{baseUrl}}{{case3Path}}
+Authorization: Bearer {{accessToken}}
+
+
+###############################################################################
+### 4. 인기 게시글
+###############################################################################
+@case4Path = /api/timeline/posts/most-popular
+
+### 4. 인기 게시글
+GET {{baseUrl}}{{case4Path}}
+Authorization: Bearer {{accessToken}}
+
+
+###############################################################################
+### 5. 기간검색
+###############################################################################
+#@case5Path = /api/timeline/posts/
+#
+#### 4. 인기 게시글
+#GET {{baseUrl}}{{case5Path}}
+#Authorization: Bearer {{accessToken}}
+
