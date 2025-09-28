@@ -34,6 +34,7 @@ public interface TimelinePostMapper {
                 .authorId(author.getId())
                 .authorName(author.getDisplayName())
                 .authorHandle(author.getMemberHandle())
+                .authorAvatarUrl(author.getAvatarUrl())
                 .viewCount(post.getViewCount())
                 .likeCount(post.getLikeCount())
                 .commentCount(commentCount)
