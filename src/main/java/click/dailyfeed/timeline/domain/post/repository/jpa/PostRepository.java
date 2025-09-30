@@ -7,6 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+import java.util.Set;
+
 public interface PostRepository extends JpaRepository<Post, Long> {
     // 인기 게시글 (좋아요 수 기준)
     @Query("SELECT p FROM Post p WHERE p.isDeleted = false ORDER BY (p.viewCount + p.likeCount * 2) DESC, p.createdAt DESC")
@@ -32,4 +35,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             "WHERE p.isDeleted = false AND (c.isDeleted = false OR c.id IS NULL) " +
             "ORDER BY COALESCE(MAX(c.createdAt), p.createdAt) DESC")
     Page<Post> findPostsByRecentActivity(Pageable pageable);
+
+    @Query("SELECT p FROM Post p WHERE p.isDeleted = false and p.id in :ids ORDER BY p.createdAt DESC")
+    List<Post> findPostsByIdsInNotDeletedOrderByCreatedDateDesc(Set<Long> ids);
 }

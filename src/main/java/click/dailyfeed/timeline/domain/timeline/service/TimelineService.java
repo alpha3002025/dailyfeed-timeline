@@ -4,6 +4,7 @@ import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.domain.timeline.timeline.predicate.PushPullPredicate;
+import click.dailyfeed.code.global.cache.RedisKeyConstant;
 import click.dailyfeed.code.global.web.code.ResponseSuccessCode;
 import click.dailyfeed.code.global.web.page.DailyfeedPage;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
@@ -14,12 +15,16 @@ import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostActivityRedisS
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @RequiredArgsConstructor
@@ -68,7 +73,14 @@ public class TimelineService {
     }
 
     public DailyfeedScrollPage<PostDto.Post> getPostsOrderByCommentCount(Pageable pageable, String token, HttpServletResponse httpResponse){
-        return timelinePullService.getPostsOrderByCommentCount(pageable, token, httpResponse);
+        DailyfeedScrollPage<PostDto.Post> result = timelinePullService.getPostsOrderByCommentCount(pageable, token, httpResponse);
+
+        /// 댓글이 하나도 없을 경우 (기본옵션은 댓글이 없을 경우 표시x)
+//        if(result.getContent().isEmpty()){ // 댓글이 달린 글이 없을 경우
+//            return timelinePullService.getPopularPosts(pageable, token, httpResponse);
+//        }
+
+        return result;
     }
 
     public DailyfeedScrollPage<PostDto.Post> getPopularPosts(Pageable pageable, String token, HttpServletResponse httpResponse) {
@@ -104,5 +116,9 @@ public class TimelineService {
                 .sorted((a,b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
                 .limit(size)
                 .toList();
+    }
+
+    public List<PostDto.Post> getPostListByIdsIn(PostDto.PostsBulkRequest request, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getPostListByIdsIn(request, token, httpResponse);
     }
 }

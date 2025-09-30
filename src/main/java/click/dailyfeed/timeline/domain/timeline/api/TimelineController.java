@@ -1,6 +1,7 @@
 package click.dailyfeed.timeline.domain.timeline.api;
 
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
+import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.global.web.code.ResponseSuccessCode;
@@ -9,8 +10,10 @@ import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.code.global.web.response.DailyfeedPageResponse;
 import click.dailyfeed.code.global.web.response.DailyfeedScrollResponse;
 import click.dailyfeed.code.global.web.response.DailyfeedServerResponse;
+import click.dailyfeed.feign.config.web.annotation.AuthenticatedMember;
 import click.dailyfeed.feign.config.web.annotation.AuthenticatedMemberProfile;
 import click.dailyfeed.timeline.domain.timeline.service.TimelineService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
@@ -101,4 +105,23 @@ public class TimelineController {
                 .build();
     }
 
+
+    /// query
+    /// 특수목적 or internal
+    /// 특정 post Id 리스트에 해당되는 글 목록
+    @Operation(summary = "특정 post id 리스트에 해당하는 글 목록", description = "글 id 목록에 대한 글 데이터 목록을 조회합니다.")
+    @PostMapping  ("/posts/query/list")
+    public DailyfeedServerResponse<List<PostDto.Post>> getPostListByIdsIn(
+            @AuthenticatedMember MemberDto.Member member,
+            @RequestHeader(value = "Authorization", required = false) String token,
+            HttpServletResponse httpResponse,
+            @RequestBody PostDto.PostsBulkRequest request
+    ){
+        List<PostDto.Post> result = timelineService.getPostListByIdsIn(request, token, httpResponse);
+        return DailyfeedServerResponse.<List<PostDto.Post>>builder()
+                .status(HttpStatus.OK.value())
+                .result(ResponseSuccessCode.SUCCESS)
+                .data(result)
+                .build();
+    }
 }
