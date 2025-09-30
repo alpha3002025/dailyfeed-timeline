@@ -88,8 +88,7 @@ public class TimelinePullService {
 
                         return TimelineDto.TimelinePostActivity
                                 .builder()
-                                .id(activity.getId().toString())
-                                .postId(activity.getPostId())
+                                .id(activity.getPostId())
                                 .authorId(activity.getMemberId())
                                 .authorName(author != null ? author.getDisplayName() : "Unknown")
                                 .authorHandle(author != null ? author.getMemberHandle() : "unknown")
@@ -102,8 +101,7 @@ public class TimelinePullService {
                     }
                     return TimelineDto.TimelinePostActivity
                             .builder()
-                            .id(activity.getId().toString())
-                            .postId(activity.getPostId())
+                            .id(activity.getPostId())
                             .authorId(activity.getMemberId())
                             .authorName(author != null ? author.getDisplayName() : "Unknown")
                             .authorHandle(author != null ? author.getMemberHandle() : "unknown")
