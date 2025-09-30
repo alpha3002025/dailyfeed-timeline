@@ -26,7 +26,7 @@ public interface TimelinePostMapper {
                 .build();
     }
 
-    default PostDto.Post toPostDto(Post post, MemberProfileDto.Summary author, Integer commentCount) {
+    default PostDto.Post toPostDto(Post post, MemberProfileDto.Summary author, Long commentCount) {
         return PostDto.Post.builder()
                 .id(post.getId())
                 .title(post.getTitle())

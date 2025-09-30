@@ -46,18 +46,17 @@ public class TimelinePullService {
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_GET_TIMELINE_ITEMS_DEFAULT, key="#userId + '_' + #page + '_' + #size + '_' + #hours", unless = "#result.isEmpty()")
     public List<TimelineDto.TimelinePostActivity> listMyFollowingActivities(Long userId, int page, int size, int hours, String token, HttpServletResponse httpResponse) {
-        List<MemberProfileDto.Summary> members = fetchMyFollowingMembers(token, httpResponse); /// 여기서 MemberDto.Summary 또는 FollowDto.Following 으로 들고오면, 뒤에서 MemberMap API 로 구할 필요가 없다.
+        List<MemberProfileDto.Summary> followingMembers = fetchMyFollowingMembers(token, httpResponse); /// 여기서 MemberDto.Summary 또는 FollowDto.Following 으로 들고오면, 뒤에서 MemberMap API 로 구할 필요가 없다.
+        Map<Long, MemberProfileDto.Summary> followingsMap = followingMembers.stream().collect(Collectors.toMap(s -> s.getMemberId(), s -> s));
 
-        List<Long> followingIds = members.stream().map(MemberProfileDto.Summary::getMemberId).toList();
-
-        if (followingIds.isEmpty()) {
+        if (followingsMap.isEmpty()) {
             return List.of();
         }
 
         LocalDateTime since = LocalDateTime.now().minusHours(hours);
         Pageable pageable = PageRequest.of(page, size);
 
-        Page<PostActivity> activities = postActivityMongoRepository.findFollowingActivitiesWhereFollowingIdsIn(followingIds, since, pageable);
+        Page<PostActivity> activities = postActivityMongoRepository.findFollowingActivitiesWhereFollowingIdsIn(followingsMap.keySet(), since, pageable);
         if (activities.isEmpty()) {
             return List.of();
         }
@@ -70,15 +69,19 @@ public class TimelinePullService {
         return activities.stream()
                 .map(activity -> {
                     final PostDto.Post p = postMap.get(activity.getPostId());
+                    MemberProfileDto.Summary author = followingsMap.get(p.getAuthorId());
+
                     if (p == null) { // 애플리케이션 재기동시 MySQL 날라갔을때 증상
                         // Return a minimal activity object when post is not found
+
                         return TimelineDto.TimelinePostActivity
                                 .builder()
                                 .id(activity.getId().toString())
                                 .postId(activity.getPostId())
                                 .authorId(activity.getMemberId())
-                                .authorName("Unknown")
-                                .memberHandle("unknown")
+                                .authorName(author != null ? author.getDisplayName() : "Unknown")
+                                .authorHandle(author != null ? author.getMemberHandle() : "unknown")
+                                .authorAvatarUrl(author != null ? author.getAvatarUrl() : null)
                                 .activityType(activity.getPostActivityType().getActivityName())
                                 .createdAt(activity.getCreatedAt())
                                 .title("[Post not found]")
@@ -90,8 +93,9 @@ public class TimelinePullService {
                             .id(activity.getId().toString())
                             .postId(activity.getPostId())
                             .authorId(activity.getMemberId())
-                            .authorName(p.getAuthorName())
-                            .memberHandle(p.getAuthorHandle())
+                            .authorName(author != null ? author.getDisplayName() : "Unknown")
+                            .authorHandle(author != null ? author.getMemberHandle() : "unknown")
+                            .authorAvatarUrl(author != null ? author.getAvatarUrl() : null)
                             .activityType(activity.getPostActivityType().getActivityName())
                             .createdAt(activity.getCreatedAt())
                             .title(p.getTitle())
@@ -186,7 +190,7 @@ public class TimelinePullService {
 
         return posts.stream()
                 .map(post -> {
-                    return timelinePostMapper.toPostDto(post, authorsMap.get(post.getAuthorId()), post.getCommentsCount());
+                    return timelinePostMapper.toPostDto(post, authorsMap.get(post.getAuthorId()), Long.parseLong(String.valueOf(post.getCommentsCount())));
                 })
                 .collect(Collectors.toList());
     }
