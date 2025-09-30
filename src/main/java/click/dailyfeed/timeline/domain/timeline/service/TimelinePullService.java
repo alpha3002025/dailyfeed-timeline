@@ -1,7 +1,10 @@
 package click.dailyfeed.timeline.domain.timeline.service;
 
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
+import click.dailyfeed.code.domain.content.post.exception.PostNotFoundException;
+import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
+import click.dailyfeed.code.domain.member.member.exception.MemberNotFoundException;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.global.cache.RedisKeyConstant;
 import click.dailyfeed.code.global.web.page.DailyfeedPage;
@@ -72,7 +75,8 @@ public class TimelinePullService {
         ///  get Post Map (id = PostId)
         Set<Long> postIds = activities.getContent().stream().map(PostActivity::getPostId).collect(Collectors.toSet());
         PostDto.PostsBulkRequest request = PostDto.PostsBulkRequest.builder().ids(postIds).build();
-        Map<Long, PostDto.Post> postMap = postFeignHelper.getPostMap(request, token, httpResponse);
+//        Map<Long, PostDto.Post> postMap = postFeignHelper.getPostMap(request, token, httpResponse);
+        Map<Long, PostDto.Post> postMap = getPostListByIdsIn(request, token, httpResponse).stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
 
         return activities.stream()
                 .map(activity -> {
@@ -252,6 +256,48 @@ public class TimelinePullService {
         return result.stream().map(post -> timelineMapper.toPostDto(post, authorMap.get(post.getAuthorId()), postLikeCountStatisticsMap.get(post.getId()), commentCountStatisticsMap.get(post.getId()))).toList();
     }
 
+    public DailyfeedPage<PostDto.Post> getMyPosts(MemberDto.Member requestedMember, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        Page<Post> page = postRepository.findByAuthorIdAndNotDeleted(requestedMember.getId(), pageable);
+        Set<Long> postPks = page.getContent().stream().map(Post::getId).collect(Collectors.toSet());
+
+        MemberProfileDto.Summary memberSummary = memberFeignHelper.getMemberSummaryById(requestedMember.getId(), token, httpResponse);
+
+        PostStatisticsInternal statistics = queryPostStatistics(PostDto.PostsBulkRequest.builder().ids(postPks).build());
+        Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap = statistics.postLikeCountStatisticsMap();
+        Map<Long, PostDto.PostCommentCountStatistics> commentCountStatisticsMap = statistics.commentCountStatisticsMap();
+
+        List<PostDto.Post> content = page.getContent().stream().map(p -> timelineMapper.toPostDto(p, memberSummary, postLikeCountStatisticsMap.get(p.getId()), commentCountStatisticsMap.get(p.getId()))).toList();
+        return pageMapper.fromJpaPageToDailyfeedPage(page, content);
+    }
+
+    @Cacheable(value = RedisKeyConstant.PostService.WEB_GET_POST_BY_ID, key = "#postId", cacheManager = "redisCacheManager")
+    public PostDto.Post getPostById(MemberDto.Member member, Long postId, String token, HttpServletResponse httpResponse) {
+        Post post = postRepository.findByIdAndNotDeleted(postId)
+                .orElseThrow(PostNotFoundException::new);
+
+        // 조회수 증가 (카프카 기반으로 변경 예정 todo)
+        post.incrementViewCount();
+
+        // 작성자 정보 조회
+        MemberProfileDto.Summary authorSummary = memberFeignHelper.getMemberSummaryById(post.getAuthorId(), token, httpResponse);
+
+        PostStatisticsInternal statistics = queryPostStatistics(PostDto.PostsBulkRequest.builder().ids(Set.of(postId)).build());
+        Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap = statistics.postLikeCountStatisticsMap();
+        Map<Long, PostDto.PostCommentCountStatistics> commentCountStatisticsMap = statistics.commentCountStatisticsMap();
+
+        return timelineMapper.toPostDto(post, authorSummary, postLikeCountStatisticsMap.get(postId), commentCountStatisticsMap.get(postId));
+    }
+
+    public DailyfeedPage<PostDto.Post> getPostsByAuthor(Long authorId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        MemberDto.Member author = memberFeignHelper.getMemberById(authorId, token, httpResponse);
+        if (author == null) {
+            throw new MemberNotFoundException(() -> "삭제된 사용자입니다");
+        }
+
+        Page<Post> posts = postRepository.findByAuthorIdAndNotDeleted(author.getId(), pageable);
+        return pageMapper.fromJpaPageToDailyfeedPage(posts, mergeAuthorAndCommentCount(posts.getContent(), token, httpResponse));
+    }
+
     /// helpers (with transactional)
     public PostStatisticsInternal queryPostStatistics(PostDto.PostsBulkRequest request){
         Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap = postLikeMongoRepository.countLikesByPostPks(request.getIds())
@@ -269,7 +315,6 @@ public class TimelinePullService {
             Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap,
             Map<Long, PostDto.PostCommentCountStatistics> commentCountStatisticsMap
     ){}
-
 
     /// helpers (internal)
 

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
@@ -38,4 +39,12 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("SELECT p FROM Post p WHERE p.isDeleted = false and p.id in :ids ORDER BY p.createdAt DESC")
     List<Post> findPostsByIdsInNotDeletedOrderByCreatedDateDesc(Set<Long> ids);
+
+    // 특정 사용자의 게시글 조회
+    @Query("SELECT p FROM Post p WHERE p.authorId = :authorId AND p.isDeleted = false ORDER BY p.createdAt DESC")
+    Page<Post> findByAuthorIdAndNotDeleted(@Param("authorId") Long authorId, Pageable pageable);
+
+    // ID로 삭제되지 않은 게시글 조회
+    @Query("SELECT p FROM Post p WHERE p.id = :id AND p.isDeleted = false")
+    Optional<Post> findByIdAndNotDeleted(@Param("id") Long id);
 }

@@ -1,6 +1,7 @@
 package click.dailyfeed.timeline.domain.timeline.service;
 
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
+import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.domain.timeline.timeline.predicate.PushPullPredicate;
@@ -81,6 +82,18 @@ public class TimelineService {
 //        }
 
         return result;
+    }
+
+    public DailyfeedPage<PostDto.Post> getMyPosts(MemberDto.Member member, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getMyPosts(member, pageable, token, httpResponse);
+    }
+
+    public PostDto.Post getPostById(MemberDto.Member member, Long postId, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getPostById(member, postId, token, httpResponse);
+    }
+
+    public DailyfeedPage<PostDto.Post> getPostsByAuthor(Long authorId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getPostsByAuthor(authorId, pageable, token, httpResponse);
     }
 
     public DailyfeedScrollPage<PostDto.Post> getPopularPosts(Pageable pageable, String token, HttpServletResponse httpResponse) {
