@@ -320,7 +320,7 @@ public class TimelinePullService {
                 .stream().map(timelineMapper::toPostLikeStatistics)
                 .collect(Collectors.toMap(o -> o.getPostPk(), o -> o));
 
-        Map<Long, PostDto.PostCommentCountStatistics> commentCountStatisticsMap = commentMongoRepository.countCommentsByPostPks(request.getIds())
+        Map<Long, PostDto.PostCommentCountStatistics> commentCountStatisticsMap = commentMongoAggregation.countCommentsByPostPks(request.getIds())
                 .stream().map(timelineMapper::toPostCommentCountStatistics)
                 .collect(Collectors.toMap(o -> o.getPostPk(), o -> o));
 

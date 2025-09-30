@@ -11,11 +11,28 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Set;
 
 @RequiredArgsConstructor
 @Component
 public class CommentMongoAggregation {
     private final MongoTemplate mongoTemplate;
+
+    public List<PostCommentCountProjection> countCommentsByPostPks(Set<Long> postPks) {
+        Aggregation aggregation = Aggregation.newAggregation(
+                Aggregation.match(Criteria.where("post_pk").in(postPks)),
+                Aggregation.group("post_pk").count().as("commentCount"),
+                Aggregation.project()
+                        .andExpression("_id").as("postPk")
+                        .andInclude("commentCount")
+                        .andExclude("_id")
+        );
+
+        AggregationResults<PostCommentCountProjection> results =
+                mongoTemplate.aggregate(aggregation, "comments", PostCommentCountProjection.class);
+
+        return results.getMappedResults();
+    }
 
     public List<PostCommentCountProjection> findTopPostsByCommentCount(Pageable pageable) {
         Aggregation aggregation = Aggregation.newAggregation(
