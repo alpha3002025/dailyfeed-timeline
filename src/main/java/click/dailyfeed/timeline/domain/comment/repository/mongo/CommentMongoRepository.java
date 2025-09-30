@@ -9,7 +9,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import org.springframework.data.domain.Pageable;
 
 public interface CommentMongoRepository extends MongoRepository<CommentDocument, ObjectId> {
     Optional<CommentDocument> findByCommentPkAndIsDeleted(Long commentPk, Boolean isDeleted);
@@ -25,12 +24,12 @@ public interface CommentMongoRepository extends MongoRepository<CommentDocument,
     // 댓글이 가장 많은 글 순으로 정렬해서 조회
     @Aggregation(pipeline = {
             "{ '$match': { 'is_deleted': false } }",
-            "{ '$group': { '_id': '$post_pk', 'count': { '$sum': 1 } } }",
-            "{ '$sort': { 'count': -1 } }",
-            "{ '$skip': ?#{#pageable.offset} }",
-            "{ '$limit': ?#{#pageable.pageSize} }",
+            "{ '$group': { '_id': '$post_pk', 'commentCount': { '$sum': 1 } } }",
+            "{ '$sort': { 'commentCount': -1 } }",
+            "{ '$skip': ?0 }",
+            "{ '$limit': ?1 }",
             "{ '$project': { 'postPk': '$_id', 'commentCount': '$count', '_id': 0 } }"
     })
-    List<PostCommentCountProjection> findTopPostsByCommentCount(Pageable pageable);
+    List<PostCommentCountProjection> findTopPostsByCommentCount(int skip, int limit);
 
 }

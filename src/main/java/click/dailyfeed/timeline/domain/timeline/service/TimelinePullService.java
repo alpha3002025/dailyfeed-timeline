@@ -20,6 +20,7 @@ import click.dailyfeed.pagination.mapper.PageMapper;
 import click.dailyfeed.timeline.domain.comment.entity.Comment;
 import click.dailyfeed.timeline.domain.comment.projection.PostCommentCountProjection;
 import click.dailyfeed.timeline.domain.comment.repository.jpa.CommentRepository;
+import click.dailyfeed.timeline.domain.comment.repository.mongo.CommentMongoAggregation;
 import click.dailyfeed.timeline.domain.comment.repository.mongo.CommentMongoRepository;
 import click.dailyfeed.timeline.domain.post.document.PostActivity;
 import click.dailyfeed.timeline.domain.post.entity.Post;
@@ -55,6 +56,8 @@ public class TimelinePullService {
     private final CommentRepository commentRepository;
     private final PostLikeMongoRepository postLikeMongoRepository;
     private final CommentMongoRepository commentMongoRepository;
+
+    private final CommentMongoAggregation commentMongoAggregation;
 
     private final MemberFeignHelper memberFeignHelper;
     private final PostFeignHelper postFeignHelper;
@@ -169,7 +172,7 @@ public class TimelinePullService {
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_ORDER_BY_COMMENT_COUNT_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
     public DailyfeedScrollPage<PostDto.Post> getPostsOrderByCommentCount(Pageable pageable, String token, HttpServletResponse httpResponse) {
-        List<PostCommentCountProjection> statisticResult = commentMongoRepository.findTopPostsByCommentCount(pageable);
+        List<PostCommentCountProjection> statisticResult = commentMongoAggregation.findTopPostsByCommentCount(pageable);
         Set<Long> postPks = statisticResult.stream().map(p -> p.getPostPk()).collect(Collectors.toSet());
 
         Map<Long, PostDto.Post> postMap = getPostListByIdsIn(PostDto.PostsBulkRequest.builder().ids(postPks).build(), token, httpResponse)
