@@ -1,8 +1,10 @@
 package click.dailyfeed.timeline.domain.timeline.mapper;
 
+import click.dailyfeed.code.domain.content.comment.dto.CommentDto;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
+import click.dailyfeed.timeline.domain.comment.entity.Comment;
 import click.dailyfeed.timeline.domain.comment.projection.PostCommentCountProjection;
 import click.dailyfeed.timeline.domain.post.entity.Post;
 import click.dailyfeed.timeline.domain.post.projection.PostLikeCountProjection;
@@ -50,6 +52,36 @@ public interface TimelineMapper {
                 .commentCount(commentCountStatistics != null ? commentCountStatistics.getCommentCount() : 0L)
                 .createdAt(post.getCreatedAt())
                 .updatedAt(post.getUpdatedAt())
+                .build();
+    }
+
+    default CommentDto.CommentSummary toCommentSummary(Comment comment){
+        return CommentDto.CommentSummary.builder()
+                .id(comment.getId())
+                .content(comment.getContent())
+                .authorId(comment.getAuthorId())
+                .postId(comment.getPost().getId())
+                .parentId(comment.getParent() != null ? comment.getParent().getId() : null)
+                .depth(comment.getDepth())
+                .likeCount(comment.getLikeCount())
+                .childrenCount(comment.getChildren().size())
+                .createdAt(comment.getCreatedAt())
+                .build();
+    }
+
+    default CommentDto.Comment toCommentNonRecursive(Comment comment){
+        return CommentDto.Comment.builder()
+                .id(comment.getId())
+                .content(comment.getContent())
+                .authorId(comment.getAuthorId())
+                .postId(comment.getPost().getId())
+                .parentId(comment.getParent() != null ? comment.getParent().getId() : null)
+                .depth(comment.getDepth())
+                .children(comment.getChildren().stream()
+                        .map(this::toCommentNonRecursive)
+                        .toList())
+                .createdAt(comment.getCreatedAt())
+                .updatedAt(comment.getUpdatedAt())
                 .build();
     }
 }

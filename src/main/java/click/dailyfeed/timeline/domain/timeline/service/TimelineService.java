@@ -1,5 +1,6 @@
 package click.dailyfeed.timeline.domain.timeline.service;
 
+import click.dailyfeed.code.domain.content.comment.dto.CommentDto;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
@@ -106,6 +107,27 @@ public class TimelineService {
 
     public DailyfeedPage<PostDto.Post> getPostsByDateRange(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable, String token, HttpServletResponse httpResponse) {
         return timelinePullService.getPostsByDateRange(startDate, endDate, pageable, token, httpResponse);
+    }
+
+    /// comments
+    public DailyfeedPage<CommentDto.CommentSummary> getMyComments(Long id, Pageable pageable, String authorizationHeader, HttpServletResponse httpResponse) {
+        return timelinePullService.getMyComments(id, pageable, authorizationHeader, httpResponse);
+    }
+
+    public DailyfeedPage<CommentDto.Comment> getCommentsByPostWithPaging(Long postId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getCommentsByPostWithPaging(postId, pageable, token, httpResponse);
+    }
+
+    public DailyfeedPage<CommentDto.CommentSummary> getCommentsByUser(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getCommentsByUser(memberId, pageable, token, httpResponse);
+    }
+
+    public CommentDto.Comment getCommentById(Long commentId, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getCommentById(commentId,token,httpResponse);
+    }
+
+    public DailyfeedPage<CommentDto.Comment> getRepliesByParent(Long commentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getRepliesByParent(commentId, pageable, token, httpResponse);
     }
 
     private PushPullPredicate checkPushOrPull(Long followingCount) {

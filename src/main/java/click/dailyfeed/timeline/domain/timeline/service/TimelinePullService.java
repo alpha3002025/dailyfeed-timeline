@@ -1,9 +1,14 @@
 package click.dailyfeed.timeline.domain.timeline.service;
 
+import click.dailyfeed.code.domain.content.comment.dto.CommentDto;
+import click.dailyfeed.code.domain.content.comment.exception.CommentNotFoundException;
+import click.dailyfeed.code.domain.content.comment.exception.ParentCommentNotFoundException;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.content.post.exception.PostNotFoundException;
+import click.dailyfeed.code.domain.member.member.code.MemberExceptionCode;
 import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
+import click.dailyfeed.code.domain.member.member.exception.MemberException;
 import click.dailyfeed.code.domain.member.member.exception.MemberNotFoundException;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.global.cache.RedisKeyConstant;
@@ -12,7 +17,9 @@ import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.feign.domain.member.MemberFeignHelper;
 import click.dailyfeed.feign.domain.post.PostFeignHelper;
 import click.dailyfeed.pagination.mapper.PageMapper;
+import click.dailyfeed.timeline.domain.comment.entity.Comment;
 import click.dailyfeed.timeline.domain.comment.projection.PostCommentCountProjection;
+import click.dailyfeed.timeline.domain.comment.repository.jpa.CommentRepository;
 import click.dailyfeed.timeline.domain.comment.repository.mongo.CommentMongoRepository;
 import click.dailyfeed.timeline.domain.post.document.PostActivity;
 import click.dailyfeed.timeline.domain.post.entity.Post;
@@ -24,6 +31,7 @@ import click.dailyfeed.timeline.domain.timeline.mapper.TimelineMapper;
 import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostActivityRedisService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,12 +45,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Transactional
 @RequiredArgsConstructor
 @Service
 public class TimelinePullService {
     private final PostActivityMongoRepository postActivityMongoRepository;
     private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
     private final PostLikeMongoRepository postLikeMongoRepository;
     private final CommentMongoRepository commentMongoRepository;
 
@@ -297,6 +307,11 @@ public class TimelinePullService {
     }
 
     /// helpers (with transactional)
+    /// 글 조회
+    public Post getPostByIdOrThrow(Long postId) {
+        return postRepository.findByIdAndNotDeleted(postId).orElseThrow(click.dailyfeed.code.domain.content.comment.exception.PostNotFoundException::new);
+    }
+
     public PostStatisticsInternal queryPostStatistics(PostDto.PostsBulkRequest request){
         Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap = postLikeMongoRepository.countLikesByPostPks(request.getIds())
                 .stream().map(timelineMapper::toPostLikeStatistics)
@@ -309,11 +324,123 @@ public class TimelinePullService {
         return new PostStatisticsInternal(postLikeCountStatisticsMap, commentCountStatisticsMap);
     }
 
+    @Transactional(readOnly = true)
+    @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_MEMBER_ID, key = "'memberId_'+#memberId+'_page_'+#page+'_size_'+#size")
+    public DailyfeedPage<CommentDto.CommentSummary> getMyComments(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        Page<Comment> comments = commentRepository.findByAuthorIdAndNotDeleted(memberId, pageable);
+        return mergeAuthorData(comments, token, httpResponse);
+    }
+
+    public DailyfeedPage<CommentDto.Comment> getCommentsByPostWithPaging(Long postId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        Post post = getPostByIdOrThrow(postId);
+        Page<Comment> comments = commentRepository.findTopLevelCommentsByPostWithPaging(post, pageable);
+        return mergeAuthorDataRecursively(comments, token, httpResponse);
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_MEMBER_ID, key = "'memberId_'+#memberId+'_page_'+#pageable.getPageNumber() +'_size_'+#pageable.getPageSize()")
+    public DailyfeedPage<CommentDto.CommentSummary> getCommentsByUser(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        Page<Comment> comments = commentRepository.findByAuthorIdAndNotDeleted(memberId, pageable);
+        return mergeAuthorData(comments, token, httpResponse);
+    }
+
+    // 댓글 상세 조회
+    @Transactional(readOnly = true)
+    @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENT_BY_ID, key = "#commentId")
+    public CommentDto.Comment getCommentById(Long commentId, String token, HttpServletResponse httpResponse) {
+        Comment comment = commentRepository.findByIdAndNotDeleted(commentId)
+                .orElseThrow(CommentNotFoundException::new);
+
+        CommentDto.Comment commentDto = timelineMapper.toCommentNonRecursive(comment);
+        mergeAuthorAtCommentList(List.of(commentDto), token, httpResponse);
+        return commentDto;
+    }
+
+    // 대댓글 목록 조회
+    @Transactional(readOnly = true)
+    @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_PARENT_ID, key = "'parentId_'+#parentId+'_page_'+#page+'_size_'+#size")
+    public DailyfeedPage<CommentDto.Comment> getRepliesByParent(Long parentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        Comment parentComment = commentRepository.findByIdAndNotDeleted(parentId)
+                .orElseThrow(ParentCommentNotFoundException::new);
+
+        Page<Comment> replies = commentRepository.findChildrenByParentWithPaging(parentComment, pageable);
+
+        List<CommentDto.Comment> commentList = replies.getContent().stream()
+                .map(timelineMapper::toCommentNonRecursive)
+                .collect(Collectors.toList());
+
+        mergeAuthorAtCommentList(commentList, token, httpResponse);
+
+        return pageMapper.fromJpaPageToDailyfeedPage(replies, commentList);
+    }
+
     private record PostStatisticsInternal(
             Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap,
             Map<Long, PostDto.PostCommentCountStatistics> commentCountStatisticsMap
     ){}
 
     /// helpers (internal)
+    public DailyfeedPage<CommentDto.CommentSummary> mergeAuthorData(Page<Comment> commentsPage, String token, HttpServletResponse httpResponse) {
+        List<CommentDto.CommentSummary> summaries = commentsPage.getContent().stream().map(timelineMapper::toCommentSummary).collect(Collectors.toList());
+        if (summaries.isEmpty()) return pageMapper.emptyPage();
 
+        Set<Long> authorIds = summaries.stream()
+                .map(CommentDto.CommentSummary::getAuthorId)
+                .collect(Collectors.toSet());
+
+        Map<Long, MemberProfileDto.Summary> authorMap = memberFeignHelper.getMemberMap(authorIds, token, httpResponse);
+
+        summaries.forEach(summary -> {
+            MemberProfileDto.Summary author = authorMap.get(summary.getAuthorId());
+            if (author != null) {
+                summary.updateAuthor(author);
+            }
+        });
+
+        return pageMapper.fromJpaPageToDailyfeedPage(commentsPage, summaries);
+    }
+
+    // 계층구조 댓글에 작성자 정보 추가 (재귀적)
+    private DailyfeedPage<CommentDto.Comment> mergeAuthorDataRecursively(Page<Comment> commentsPage, String token, HttpServletResponse httpResponse) {
+        if(commentsPage.isEmpty()) return pageMapper.emptyPage();
+
+        List<CommentDto.Comment> commentList = commentsPage.getContent().stream().map(timelineMapper::toCommentNonRecursive).collect(Collectors.toList());
+
+        Set<Long> authorIds = commentList.stream()
+                .map(CommentDto.Comment::getAuthorId)
+                .collect(Collectors.toSet());
+
+        Map<Long, MemberProfileDto.Summary> authorMap = memberFeignHelper.getMemberMap(authorIds, token, httpResponse);
+
+        commentList.forEach(comment -> {
+            MemberProfileDto.Summary author = authorMap.get(comment.getAuthorId());
+            if (author != null) {
+                comment.updateAuthorRecursively(authorMap);
+            }
+        });
+
+        return pageMapper.fromJpaPageToDailyfeedPage(commentsPage, commentList);
+    }
+
+    private void mergeAuthorAtCommentList(List<CommentDto.Comment> comments, String token, HttpServletResponse httpResponse){
+        if (comments.isEmpty()) return;
+
+        Set<Long> authorIds = comments.stream()
+                .map(CommentDto.Comment::getAuthorId)
+                .collect(Collectors.toSet());
+
+        try {
+            Map<Long, MemberProfileDto.Summary> authorMap = memberFeignHelper.getMemberMap(authorIds, token, httpResponse);
+
+            comments.forEach(comment -> {
+                MemberProfileDto.Summary author = authorMap.get(comment.getAuthorId());
+                if (author != null) {
+                    comment.updateAuthor(author);
+                }
+            });
+        } catch (Exception e) {
+            log.warn("Failed to fetch author info: {}", e.getMessage());
+            throw new MemberException(MemberExceptionCode.MEMBER_API_CONNECTION_ERROR);
+        }
+    }
 }

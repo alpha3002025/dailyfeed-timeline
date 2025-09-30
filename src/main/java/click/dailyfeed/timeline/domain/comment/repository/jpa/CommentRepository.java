@@ -2,18 +2,33 @@ package click.dailyfeed.timeline.domain.comment.repository.jpa;
 
 import click.dailyfeed.timeline.domain.comment.entity.Comment;
 import click.dailyfeed.timeline.domain.post.entity.Post;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface CommentRepository extends JpaRepository<Comment, Long> {
     // 특정 댓글과 모든 자식 댓글들을 소프트 삭제
     @Modifying
     @Query("UPDATE Comment c SET c.isDeleted = true, c.createdAt = CURRENT_TIMESTAMP WHERE c.id = :commentId OR c.parent.id = :commentId")
     void softDeleteCommentAndChildren(@Param("commentId") Long commentId);
+
+    // 특정 게시글의 최상위 댓글들을 페이징으로 조회
+    @Query("SELECT c FROM Comment c WHERE c.post = :post AND c.parent IS NULL AND c.isDeleted = false ORDER BY c.createdAt ASC")
+    Page<Comment> findTopLevelCommentsByPostWithPaging(@Param("post") Post post, Pageable pageable);
+
+    // ID로 댓글 조회 (삭제되지 않은)
+    @Query("SELECT c FROM Comment c WHERE c.id = :id AND c.isDeleted = false")
+    Optional<Comment> findByIdAndNotDeleted(@Param("id") Long id);
+
+    // 특정 댓글의 대댓글들을 페이징으로 조회
+    @Query("SELECT c FROM Comment c WHERE c.parent = :parent AND c.isDeleted = false ORDER BY c.createdAt ASC")
+    Page<Comment> findChildrenByParentWithPaging(@Param("parent") Comment parent, Pageable pageable);
 
     interface PostCommentCountProjection {
         Long getPostId();
@@ -26,4 +41,8 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
             "WHERE p IN :posts AND p.isDeleted = false " +
             "GROUP BY p.id")
     List<PostCommentCountProjection> findCommentCountsByPosts(@Param("posts") List<Post> posts);
+
+    // 특정 사용자의 댓글들
+    @Query("SELECT c FROM Comment c WHERE c.authorId = :authorId AND c.isDeleted = false ORDER BY c.createdAt DESC")
+    Page<Comment> findByAuthorIdAndNotDeleted(@Param("authorId") Long authorId, Pageable pageable);
 }
