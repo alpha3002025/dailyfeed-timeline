@@ -66,8 +66,8 @@ public class TimelinePullService {
     private final TimelineMapper timelineMapper;
 
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_GET_TIMELINE_ITEMS_DEFAULT, key="#userId + '_' + #page + '_' + #size + '_' + #hours", unless = "#result.isEmpty()")
-    public List<TimelineDto.TimelinePostActivity> listMyFollowingActivities(Long userId, int page, int size, int hours, String token, HttpServletResponse httpResponse) {
+    @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_GET_TIMELINE_ITEMS_DEFAULT, key="#memberId + '_' + #page + '_' + #size + '_' + #hours", unless = "#result.isEmpty()")
+    public List<TimelineDto.TimelinePostActivity> listMyFollowingActivities(Long memberId, int page, int size, int hours, String token, HttpServletResponse httpResponse) {
         List<MemberProfileDto.Summary> followingMembers = fetchMyFollowingMembers(token, httpResponse); /// 여기서 MemberDto.Summary 또는 FollowDto.Following 으로 들고오면, 뒤에서 MemberMap API 로 구할 필요가 없다.
         Map<Long, MemberProfileDto.Summary> followingsMap = followingMembers.stream().collect(Collectors.toMap(s -> s.getMemberId(), s -> s));
 
@@ -83,44 +83,21 @@ public class TimelinePullService {
             return List.of();
         }
 
-        ///  get Post Map (id = PostId)
+        /// postId 추출
         Set<Long> postIds = activities.getContent().stream().map(PostActivity::getPostId).collect(Collectors.toSet());
         PostDto.PostsBulkRequest request = PostDto.PostsBulkRequest.builder().ids(postIds).build();
-        Map<Long, PostDto.Post> postMap = getPostListByIdsIn(request, token, httpResponse).stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+        /// DB 조회
+        List<Post> posts = postRepository.findPostsByIdsInNotDeletedOrderByCreatedDateDesc(request.getIds());
+        /// 통계정보 추출, 병합
+        Map<Long, PostDto.Post> postMap = withAuthorsAndStatistics(posts, token, httpResponse).stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
 
+        /// 타임라인 리스트에 통계정보,Post 정보 병합
         return activities.stream()
+                .filter(activity -> postMap.containsKey(activity.getPostId()))
                 .map(activity -> {
-                    final PostDto.Post p = postMap.get(activity.getPostId());
+                    PostDto.Post p = postMap.get(activity.getPostId());
                     MemberProfileDto.Summary author = followingsMap.get(p.getAuthorId());
-
-                    if (p == null) { // 애플리케이션 재기동시 MySQL 날라갔을때 증상
-                        // Return a minimal activity object when post is not found
-
-                        return TimelineDto.TimelinePostActivity
-                                .builder()
-                                .id(activity.getPostId())
-                                .authorId(activity.getMemberId())
-                                .authorName(author != null ? author.getDisplayName() : "Unknown")
-                                .authorHandle(author != null ? author.getMemberHandle() : "unknown")
-                                .authorAvatarUrl(author != null ? author.getAvatarUrl() : null)
-                                .activityType(activity.getPostActivityType().getActivityName())
-                                .createdAt(activity.getCreatedAt())
-                                .title("[Post not found]")
-                                .content("")
-                                .build();
-                    }
-                    return TimelineDto.TimelinePostActivity
-                            .builder()
-                            .id(activity.getPostId())
-                            .authorId(activity.getMemberId())
-                            .authorName(author != null ? author.getDisplayName() : "Unknown")
-                            .authorHandle(author != null ? author.getMemberHandle() : "unknown")
-                            .authorAvatarUrl(author != null ? author.getAvatarUrl() : null)
-                            .activityType(activity.getPostActivityType().getActivityName())
-                            .createdAt(activity.getCreatedAt())
-                            .title(p.getTitle())
-                            .content(p.getContent())
-                            .build();
+                    return timelineMapper.toTimelinePostActivity(p, activity, author);
                 }).toList();
     }
 
@@ -175,31 +152,14 @@ public class TimelinePullService {
         Set<Long> postPks = statisticResult.stream().map(p -> p.getPostPk()).collect(Collectors.toSet());
 
         // postMap
-        Map<Long, PostDto.Post> postMap = getPostListByIdsIn(PostDto.PostsBulkRequest.builder().ids(postPks).build(), token, httpResponse)
-                .stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
-        // 통계정보 (댓글수, 좋아요) 추출
-        PostStatisticsInternal statistics = queryPostStatistics(PostDto.PostsBulkRequest.builder().ids(postMap.keySet()).build());
+        List<Post> posts = postRepository.findPostsByIdsInNotDeletedOrderByCreatedDateDesc(postPks);
+        Map<Long, PostDto.Post> postMap = withAuthorsAndStatistics(posts, token, httpResponse).stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
 
+        // 변환
         List<PostDto.Post> result = statisticResult.stream()
                 .map(projection -> {
-                    Long likeCount = 0L;
-                    if(statistics.postLikeCountStatisticsMap() != null && statistics.postLikeCountStatisticsMap().get(projection.getPostPk()) != null) {
-                        likeCount = statistics.postLikeCountStatisticsMap().get(projection.getPostPk()).getLikeCount();
-                    }
                     PostDto.Post post = postMap.get(projection.getPostPk());
-                    return PostDto.Post.builder()
-                            .viewCount(post != null ? post.getViewCount() : 0L)
-                            .likeCount(likeCount)
-                            .commentCount(projection.getCommentCount())
-                            .id(post != null ? post.getId() : null)
-                            .authorId(post != null ? post.getAuthorId() : null)
-                            .authorName(post != null ? post.getAuthorName() : "Unknown")
-                            .authorHandle(post != null ? post.getAuthorHandle() : "unknown")
-                            .authorAvatarUrl(post != null ? post.getAuthorAvatarUrl() : null)
-                            .content(post.getContent())
-                            .createdAt(post.getCreatedAt())
-                            .updatedAt(post.getUpdatedAt())
-                            .build();
+                    return timelineMapper.toPostDtoWithCountProjection(post, projection);
                 })
                 .collect(Collectors.toList());
 
@@ -251,6 +211,28 @@ public class TimelinePullService {
         return mergeAuthorAndStatistics(posts, authorsMap, statistics);
     }
 
+    @Cacheable(value = RedisKeyConstant.PostService.INTERNAL_LIST_GET_POST_LIST_BY_IDS_IN, keyGenerator = "postIdsKeyGenerator", cacheManager = "redisCacheManager")
+    public List<PostDto.Post> getPostListByIdsIn(PostDto.PostsBulkRequest request, String token, HttpServletResponse httpResponse) {
+        // Set이 비어있는 경우 빈 리스트 반환
+        if (request.getIds() == null || request.getIds().isEmpty()) {
+            return List.of();  // 빈 List 반환
+        }
+
+        List<Post> result = postRepository.findPostsByIdsInNotDeletedOrderByCreatedDateDesc(request.getIds());
+        Set<Long> authorIds = result.stream().map(p -> p.getAuthorId()).collect(Collectors.toSet());
+
+        Map<Long, MemberProfileDto.Summary> authorMap = memberFeignHelper
+                .getMembersList(authorIds, token, httpResponse)
+                .stream()
+                .collect(Collectors.toMap(s -> s.getMemberId(), s -> s));
+
+        PostStatisticsInternal statistics = queryPostStatistics(request);
+        Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap = statistics.postLikeCountStatisticsMap();
+        Map<Long, PostDto.PostCommentCountStatistics> commentCountStatisticsMap = statistics.commentCountStatisticsMap();
+
+        return result.stream().map(post -> timelineMapper.toPostDto(post, authorMap.get(post.getAuthorId()), postLikeCountStatisticsMap.get(post.getId()), commentCountStatisticsMap.get(post.getId()))).toList();
+    }
+
     public List<PostDto.Post> mergeAuthorAndStatistics(List<Post> posts, Map<Long, MemberProfileDto.Summary> authorsMap, PostStatisticsInternal statistics){
         return posts.stream()
                 .map(post -> {
@@ -282,28 +264,6 @@ public class TimelinePullService {
                     return timelinePostMapper.toPostDto(post, authorsMap.get(post.getAuthorId()), Long.parseLong(String.valueOf(post.getCommentsCount())));
                 })
                 .collect(Collectors.toList());
-    }
-
-    @Cacheable(value = RedisKeyConstant.PostService.INTERNAL_LIST_GET_POST_LIST_BY_IDS_IN, keyGenerator = "postIdsKeyGenerator", cacheManager = "redisCacheManager")
-    public List<PostDto.Post> getPostListByIdsIn(PostDto.PostsBulkRequest request, String token, HttpServletResponse httpResponse) {
-        // Set이 비어있는 경우 빈 리스트 반환
-        if (request.getIds() == null || request.getIds().isEmpty()) {
-            return List.of();  // 빈 List 반환
-        }
-
-        List<Post> result = postRepository.findPostsByIdsInNotDeletedOrderByCreatedDateDesc(request.getIds());
-        Set<Long> authorIds = result.stream().map(p -> p.getAuthorId()).collect(Collectors.toSet());
-
-        Map<Long, MemberProfileDto.Summary> authorMap = memberFeignHelper
-                .getMembersList(authorIds, token, httpResponse)
-                .stream()
-                .collect(Collectors.toMap(s -> s.getMemberId(), s -> s));
-
-        PostStatisticsInternal statistics = queryPostStatistics(request);
-        Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap = statistics.postLikeCountStatisticsMap();
-        Map<Long, PostDto.PostCommentCountStatistics> commentCountStatisticsMap = statistics.commentCountStatisticsMap();
-
-        return result.stream().map(post -> timelineMapper.toPostDto(post, authorMap.get(post.getAuthorId()), postLikeCountStatisticsMap.get(post.getId()), commentCountStatisticsMap.get(post.getId()))).toList();
     }
 
     public DailyfeedPage<PostDto.Post> getMyPosts(MemberDto.Member requestedMember, Pageable pageable, String token, HttpServletResponse httpResponse) {

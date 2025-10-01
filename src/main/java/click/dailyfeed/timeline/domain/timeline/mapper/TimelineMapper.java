@@ -3,9 +3,11 @@ package click.dailyfeed.timeline.domain.timeline.mapper;
 import click.dailyfeed.code.domain.content.comment.dto.CommentDto;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
+import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.timeline.domain.comment.entity.Comment;
 import click.dailyfeed.timeline.domain.comment.projection.PostCommentCountProjection;
+import click.dailyfeed.timeline.domain.post.document.PostActivity;
 import click.dailyfeed.timeline.domain.post.entity.Post;
 import click.dailyfeed.timeline.domain.post.projection.PostLikeCountProjection;
 import org.mapstruct.Mapper;
@@ -21,6 +23,40 @@ public interface TimelineMapper {
                 .content(list)
                 .page(pageable.getPageNumber())
                 .size(pageable.getPageSize())
+                .build();
+    }
+
+    default TimelineDto.TimelinePostActivity toTimelinePostActivity(PostDto.Post p, PostActivity activity, MemberProfileDto.Summary author) {
+        return TimelineDto.TimelinePostActivity
+                .builder()
+                .likeCount(p.getLikeCount())
+                .commentCount(p.getCommentCount())
+                .viewCount(p.getViewCount())
+                .id(activity.getPostId())
+                .authorId(activity.getMemberId())
+                .authorName(author != null ? author.getDisplayName() : "Unknown")
+                .authorHandle(author != null ? author.getMemberHandle() : "unknown")
+                .authorAvatarUrl(author != null ? author.getAvatarUrl() : null)
+                .activityType(activity.getPostActivityType().getActivityName())
+                .createdAt(activity.getCreatedAt())
+                .title(p.getTitle())
+                .content(p.getContent())
+                .build();
+    }
+
+    default PostDto.Post toPostDtoWithCountProjection(PostDto.Post post, PostCommentCountProjection projection) {
+        return PostDto.Post.builder()
+                .viewCount(post != null ? post.getViewCount() : 0L)
+                .likeCount(post.getLikeCount())
+                .commentCount(projection.getCommentCount())
+                .id(post != null ? post.getId() : null)
+                .authorId(post != null ? post.getAuthorId() : null)
+                .authorName(post != null ? post.getAuthorName() : "Unknown")
+                .authorHandle(post != null ? post.getAuthorHandle() : "unknown")
+                .authorAvatarUrl(post != null ? post.getAuthorAvatarUrl() : null)
+                .content(post.getContent())
+                .createdAt(post.getCreatedAt())
+                .updatedAt(post.getUpdatedAt())
                 .build();
     }
 
