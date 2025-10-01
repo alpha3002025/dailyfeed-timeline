@@ -286,8 +286,10 @@ public class TimelinePullService {
         Post post = postRepository.findByIdAndNotDeleted(postId)
                 .orElseThrow(PostNotFoundException::new);
 
-        // 조회수 증가 (카프카 기반으로 변경 예정 todo)
-        post.incrementViewCount();
+        if (post.getAuthorId() != member.getId()) {
+            // 조회수 증가 (조회수 필드 :: 필요에 의해 비정규화 상태 그대로 유지)
+            post.incrementViewCount();
+        }
 
         // 작성자 정보 조회
         MemberProfileDto.Summary authorSummary = memberFeignHelper.getMemberSummaryById(post.getAuthorId(), token, httpResponse);
