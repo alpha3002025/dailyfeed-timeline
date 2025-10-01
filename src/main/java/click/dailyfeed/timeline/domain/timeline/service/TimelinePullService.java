@@ -89,7 +89,7 @@ public class TimelinePullService {
         /// DB 조회
         List<Post> posts = postRepository.findPostsByIdsInNotDeletedOrderByCreatedDateDesc(request.getIds());
         /// 통계정보 추출, 병합
-        Map<Long, PostDto.Post> postMap = withAuthorsAndStatistics(posts, token, httpResponse).stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+        Map<Long, PostDto.Post> postMap = withAuthorsAndStatistics(memberId, posts, token, httpResponse).stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
 
         /// 타임라인 리스트에 통계정보,Post 정보 병합
         return activities.stream()
@@ -97,7 +97,7 @@ public class TimelinePullService {
                 .map(activity -> {
                     PostDto.Post p = postMap.get(activity.getPostId());
                     MemberProfileDto.Summary author = followingsMap.get(p.getAuthorId());
-                    return timelineMapper.toTimelinePostActivity(p, activity, author);
+                    return timelineMapper.toTimelinePostActivity(p, p.getLiked(), activity, author);
                 }).toList();
     }
 
@@ -145,7 +145,7 @@ public class TimelinePullService {
     // 댓글이 많은 게시글 목록
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_ORDER_BY_COMMENT_COUNT_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
-    public DailyfeedScrollPage<PostDto.Post> getPostsOrderByCommentCount(Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<PostDto.Post> getPostsOrderByCommentCount(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         // 댓글 많은 순 데이터
         List<PostCommentCountProjection> statisticResult = commentMongoAggregation.findTopPostsByCommentCount(pageable);
         // 글 post id 키값 추출
@@ -153,7 +153,7 @@ public class TimelinePullService {
 
         // postMap
         List<Post> posts = postRepository.findPostsByIdsInNotDeletedOrderByCreatedDateDesc(postPks);
-        Map<Long, PostDto.Post> postMap = withAuthorsAndStatistics(posts, token, httpResponse).stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+        Map<Long, PostDto.Post> postMap = withAuthorsAndStatistics(memberId, posts, token, httpResponse).stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
 
         // 변환
         List<PostDto.Post> result = statisticResult.stream()
@@ -173,31 +173,31 @@ public class TimelinePullService {
     // 인기 글 목록
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_ORDER_BY_POPULAR_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
-    public DailyfeedScrollPage<PostDto.Post> getPopularPosts(Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<PostDto.Post> getPopularPosts(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         Page<Post> page = postRepository.findPopularPostsNotDeleted(pageable);
-        List<PostDto.Post> result = withAuthorsAndStatistics(page.getContent(), token, httpResponse);
+        List<PostDto.Post> result = withAuthorsAndStatistics(requestedMemberId, page.getContent(), token, httpResponse);
         return pageMapper.fromJpaPageToDailyfeedScrollPage(page, result);
     }
 
     // 최근 활동이 있는 글 조회
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_RECENT_ACTIVITY_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
-    public DailyfeedScrollPage<PostDto.Post> getPostsByRecentActivity(Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<PostDto.Post> getPostsByRecentActivity(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         Page<Post> page = postRepository.findPostsByRecentActivity(pageable);
-        List<PostDto.Post> result = withAuthorsAndStatistics(page.getContent(), token, httpResponse);
+        List<PostDto.Post> result = withAuthorsAndStatistics(requestedMemberId, page.getContent(), token, httpResponse);
         return pageMapper.fromJpaPageToDailyfeedScrollPage(page, result);
     }
 
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_DATE_RANGE, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
-    public DailyfeedPage<PostDto.Post> getPostsByDateRange(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedPage<PostDto.Post> getPostsByDateRange(Long requestedMemberId, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable, String token, HttpServletResponse httpResponse) {
         Page<Post> page = postRepository.findByCreatedDateBetweenAndNotDeleted(startDate, endDate, pageable);
-        List<PostDto.Post> result = withAuthorsAndStatistics(page.getContent(), token, httpResponse);
+        List<PostDto.Post> result = withAuthorsAndStatistics(requestedMemberId, page.getContent(), token, httpResponse);
         return pageMapper.fromJpaPageToDailyfeedPage(page, result);
     }
 
     @Transactional(readOnly = true)
-    public List<PostDto.Post> withAuthorsAndStatistics(List<Post> posts, String token, HttpServletResponse httpResponse) {
+    public List<PostDto.Post> withAuthorsAndStatistics(Long memberId, List<Post> posts, String token, HttpServletResponse httpResponse) {
         // group by 및 키값 추출
         Map<Long, Post> postMap = posts.stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
         Set<Long> authorIds = posts.stream().map(p -> p.getAuthorId()).collect(Collectors.toSet());
@@ -206,9 +206,11 @@ public class TimelinePullService {
         Map<Long, MemberProfileDto.Summary> authorsMap = memberFeignHelper.getMemberMap(authorIds, token, httpResponse);
         // 통계정보 (댓글수, 좋아요) 추출
         PostStatisticsInternal statistics = queryPostStatistics(PostDto.PostsBulkRequest.builder().ids(postMap.keySet()).build());
+        // 좋아요 여부 체크
+        Set<Long> likedPostPks = postLikeMongoRepository.findByPostPkInAndMemberId(postMap.keySet(), memberId).stream().map(d -> d.getPostPk()).collect(Collectors.toSet());
 
         // 작성자 상세정보, 통계 정보 병합
-        return mergeAuthorAndStatistics(posts, authorsMap, statistics);
+        return mergeAuthorAndStatistics(posts, likedPostPks, authorsMap, statistics);
     }
 
     @Cacheable(value = RedisKeyConstant.PostService.INTERNAL_LIST_GET_POST_LIST_BY_IDS_IN, keyGenerator = "postIdsKeyGenerator", cacheManager = "redisCacheManager")
@@ -233,7 +235,7 @@ public class TimelinePullService {
         return result.stream().map(post -> timelineMapper.toPostDto(post, authorMap.get(post.getAuthorId()), postLikeCountStatisticsMap.get(post.getId()), commentCountStatisticsMap.get(post.getId()))).toList();
     }
 
-    public List<PostDto.Post> mergeAuthorAndStatistics(List<Post> posts, Map<Long, MemberProfileDto.Summary> authorsMap, PostStatisticsInternal statistics){
+    public List<PostDto.Post> mergeAuthorAndStatistics(List<Post> posts, Set<Long> likedPostPks, Map<Long, MemberProfileDto.Summary> authorsMap, PostStatisticsInternal statistics){
         return posts.stream()
                 .map(post -> {
                     Long commentCount = 0L;
@@ -244,7 +246,7 @@ public class TimelinePullService {
                     if(statistics.postLikeCountStatisticsMap() != null && statistics.postLikeCountStatisticsMap().get(post.getId()) != null){
                         likeCount = statistics.postLikeCountStatisticsMap().get(post.getId()).getLikeCount();
                     }
-                    return timelinePostMapper.toPostDto(post, authorsMap.get(post.getAuthorId()), commentCount, likeCount);
+                    return timelinePostMapper.toPostDto(post, likedPostPks.contains(post.getId()) ,authorsMap.get(post.getAuthorId()), commentCount, likeCount);
                 })
                 .collect(Collectors.toList());
     }
@@ -268,16 +270,8 @@ public class TimelinePullService {
 
     public DailyfeedPage<PostDto.Post> getMyPosts(MemberDto.Member requestedMember, Pageable pageable, String token, HttpServletResponse httpResponse) {
         Page<Post> page = postRepository.findByAuthorIdAndNotDeleted(requestedMember.getId(), pageable);
-        Set<Long> postPks = page.getContent().stream().map(Post::getId).collect(Collectors.toSet());
-
-        MemberProfileDto.Summary memberSummary = memberFeignHelper.getMemberSummaryById(requestedMember.getId(), token, httpResponse);
-
-        PostStatisticsInternal statistics = queryPostStatistics(PostDto.PostsBulkRequest.builder().ids(postPks).build());
-        Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap = statistics.postLikeCountStatisticsMap();
-        Map<Long, PostDto.PostCommentCountStatistics> commentCountStatisticsMap = statistics.commentCountStatisticsMap();
-
-        List<PostDto.Post> content = page.getContent().stream().map(p -> timelineMapper.toPostDto(p, memberSummary, postLikeCountStatisticsMap.get(p.getId()), commentCountStatisticsMap.get(p.getId()))).toList();
-        return pageMapper.fromJpaPageToDailyfeedPage(page, content);
+        List<PostDto.Post> posts = withAuthorsAndStatistics(requestedMember.getId(), page.getContent(), token, httpResponse);
+        return pageMapper.fromJpaPageToDailyfeedPage(page, posts);
     }
 
     @Cacheable(value = RedisKeyConstant.PostService.WEB_GET_POST_BY_ID, key = "#postId", cacheManager = "redisCacheManager")

@@ -2,6 +2,7 @@ package click.dailyfeed.timeline.domain.post.document;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.bson.types.ObjectId;
@@ -12,6 +13,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(of = {"postPk", "memberId"})
 @Document(collection = "post_likes")
 public class PostLikeDocument {
 

@@ -43,7 +43,7 @@ public interface TimelinePostMapper {
                 .build();
     }
 
-    default PostDto.Post toPostDto(Post post, MemberProfileDto.Summary author, Long commentCount, Long likeCount) {
+    default PostDto.Post toPostDto(Post post, Boolean liked, MemberProfileDto.Summary author, Long commentCount, Long likeCount) {
         return PostDto.Post.builder()
                 .id(post.getId())
                 .title(post.getTitle())
@@ -52,6 +52,7 @@ public interface TimelinePostMapper {
                 .authorName(author == null ? "탈퇴한 사용자" : author.getDisplayName())
                 .authorHandle(author == null ? "탈퇴한 사용지" : author.getMemberHandle())
                 .authorAvatarUrl(author == null ? null : author.getAvatarUrl())
+                .liked(liked)
                 .viewCount(post.getViewCount())
                 .likeCount(likeCount)
                 .commentCount(commentCount)

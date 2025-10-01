@@ -6,27 +6,21 @@ import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.domain.timeline.timeline.predicate.PushPullPredicate;
-import click.dailyfeed.code.global.cache.RedisKeyConstant;
 import click.dailyfeed.code.global.web.code.ResponseSuccessCode;
 import click.dailyfeed.code.global.web.page.DailyfeedPage;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
-import click.dailyfeed.code.global.web.response.DailyfeedScrollResponse;
 import click.dailyfeed.code.global.web.response.DailyfeedServerResponse;
 import click.dailyfeed.timeline.domain.timeline.mapper.TimelineMapper;
 import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostActivityRedisService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @RequiredArgsConstructor
@@ -74,8 +68,8 @@ public class TimelineService {
         }
     }
 
-    public DailyfeedScrollPage<PostDto.Post> getPostsOrderByCommentCount(Pageable pageable, String token, HttpServletResponse httpResponse){
-        DailyfeedScrollPage<PostDto.Post> result = timelinePullService.getPostsOrderByCommentCount(pageable, token, httpResponse);
+    public DailyfeedScrollPage<PostDto.Post> getPostsOrderByCommentCount(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse){
+        DailyfeedScrollPage<PostDto.Post> result = timelinePullService.getPostsOrderByCommentCount(memberId, pageable, token, httpResponse);
 
         /// 댓글이 하나도 없을 경우 (기본옵션은 댓글이 없을 경우 표시x)
 //        if(result.getContent().isEmpty()){ // 댓글이 달린 글이 없을 경우
@@ -97,16 +91,16 @@ public class TimelineService {
         return timelinePullService.getPostsByAuthor(authorId, pageable, token, httpResponse);
     }
 
-    public DailyfeedScrollPage<PostDto.Post> getPopularPosts(Pageable pageable, String token, HttpServletResponse httpResponse) {
-        return timelinePullService.getPopularPosts(pageable, token, httpResponse);
+    public DailyfeedScrollPage<PostDto.Post> getPopularPosts(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getPopularPosts(requestedMemberId, pageable, token, httpResponse);
     }
 
-    public DailyfeedScrollPage<PostDto.Post> getPostsByRecentActivity(Pageable pageable, String token, HttpServletResponse httpResponse) {
-        return timelinePullService.getPostsByRecentActivity(pageable, token, httpResponse);
+    public DailyfeedScrollPage<PostDto.Post> getPostsByRecentActivity(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getPostsByRecentActivity(requestedMemberId, pageable, token, httpResponse);
     }
 
-    public DailyfeedPage<PostDto.Post> getPostsByDateRange(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        return timelinePullService.getPostsByDateRange(startDate, endDate, pageable, token, httpResponse);
+    public DailyfeedPage<PostDto.Post> getPostsByDateRange(Long requestedMemberId, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getPostsByDateRange(requestedMemberId, startDate, endDate, pageable, token, httpResponse);
     }
 
     /// comments

@@ -13,6 +13,7 @@ import click.dailyfeed.code.global.web.response.DailyfeedScrollResponse;
 import click.dailyfeed.code.global.web.response.DailyfeedServerResponse;
 import click.dailyfeed.feign.config.web.annotation.AuthenticatedMember;
 import click.dailyfeed.feign.config.web.annotation.AuthenticatedMemberProfile;
+import click.dailyfeed.feign.config.web.annotation.AuthenticatedMemberProfileSummary;
 import click.dailyfeed.timeline.domain.timeline.service.TimelineService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
@@ -45,12 +46,12 @@ public class TimelineController {
 
     @GetMapping("/posts/most-commented")
     public DailyfeedScrollResponse<DailyfeedScrollPage<PostDto.Post>> getMostCommentedMembersTimeline(
-            @AuthenticatedMemberProfile MemberProfileDto.MemberProfile memberProfile,
+            @AuthenticatedMemberProfile MemberProfileDto.MemberProfile member,
             @RequestHeader("Authorization") String token,
             HttpServletResponse response,
             @PageableDefault(size = 20, sort = "updatedAt") Pageable pageable
     ){
-        DailyfeedScrollPage<PostDto.Post> scrollPage = timelineService.getPostsOrderByCommentCount(pageable, token, response);
+        DailyfeedScrollPage<PostDto.Post> scrollPage = timelineService.getPostsOrderByCommentCount(member.getMemberId(), pageable, token, response);
         return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
                 .data(scrollPage)
                 .result(ResponseSuccessCode.SUCCESS)
@@ -62,11 +63,12 @@ public class TimelineController {
     // (timeline 으로 이관 예정(/timeline/feed/popular))
     @GetMapping("/posts/most-popular")
     public DailyfeedScrollResponse<DailyfeedScrollPage<PostDto.Post>> getPopularPosts(
+            @AuthenticatedMemberProfileSummary MemberProfileDto.Summary member,
             @RequestHeader("Authorization") String token,
             HttpServletResponse httpResponse,
             @PageableDefault(page = 0, size = 20) Pageable pageable) {
 
-        DailyfeedScrollPage<PostDto.Post> result = timelineService.getPopularPosts(pageable, token, httpResponse);
+        DailyfeedScrollPage<PostDto.Post> result = timelineService.getPopularPosts(member.getMemberId(), pageable, token, httpResponse);
         return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
                 .status(HttpStatus.OK.value())
                 .result(ResponseSuccessCode.SUCCESS)
@@ -78,11 +80,12 @@ public class TimelineController {
     // (timeline 으로 이관 예정 (/timeline/feed/latest))
     @GetMapping("/posts/recent-activity")
     public DailyfeedScrollResponse<DailyfeedScrollPage<PostDto.Post>> getPostsByRecentActivity(
+            @AuthenticatedMemberProfileSummary MemberProfileDto.Summary member,
             @RequestHeader("Authorization") String token,
             HttpServletResponse httpResponse,
             @PageableDefault(page = 0, size = 20) Pageable pageable) {
 
-        DailyfeedScrollPage<PostDto.Post> result = timelineService.getPostsByRecentActivity(pageable, token, httpResponse);
+        DailyfeedScrollPage<PostDto.Post> result = timelineService.getPostsByRecentActivity(member.getMemberId(), pageable, token, httpResponse);
         return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
                 .status(HttpStatus.OK.value())
                 .result(ResponseSuccessCode.SUCCESS)
@@ -93,13 +96,14 @@ public class TimelineController {
     // 특정 기간 내 게시글 조회
     @GetMapping("/posts/date-range")
     public DailyfeedPageResponse<PostDto.Post> getPostsByDateRange(
+            @AuthenticatedMemberProfileSummary MemberProfileDto.Summary member,
             @RequestHeader("Authorization") String token,
             HttpServletResponse httpResponse,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             @PageableDefault(page = 0, size = 20) Pageable pageable) {
 
-        DailyfeedPage<PostDto.Post> result = timelineService.getPostsByDateRange(startDate, endDate, pageable, token, httpResponse);
+        DailyfeedPage<PostDto.Post> result = timelineService.getPostsByDateRange(member.getMemberId(), startDate, endDate, pageable, token, httpResponse);
         return DailyfeedPageResponse.<PostDto.Post>builder()
                 .status(HttpStatus.OK.value())
                 .result(ResponseSuccessCode.SUCCESS)

@@ -26,12 +26,13 @@ public interface TimelineMapper {
                 .build();
     }
 
-    default TimelineDto.TimelinePostActivity toTimelinePostActivity(PostDto.Post p, PostActivity activity, MemberProfileDto.Summary author) {
+    default TimelineDto.TimelinePostActivity toTimelinePostActivity(PostDto.Post p, Boolean liked, PostActivity activity, MemberProfileDto.Summary author) {
         return TimelineDto.TimelinePostActivity
                 .builder()
                 .likeCount(p.getLikeCount())
                 .commentCount(p.getCommentCount())
                 .viewCount(p.getViewCount())
+                .liked(liked)
                 .id(activity.getPostId())
                 .authorId(activity.getMemberId())
                 .authorName(author != null ? author.getDisplayName() : "Unknown")
@@ -49,6 +50,7 @@ public interface TimelineMapper {
                 .viewCount(post != null ? post.getViewCount() : 0L)
                 .likeCount(post.getLikeCount())
                 .commentCount(projection.getCommentCount())
+                .liked(post.getLiked())
                 .id(post != null ? post.getId() : null)
                 .authorId(post != null ? post.getAuthorId() : null)
                 .authorName(post != null ? post.getAuthorName() : "Unknown")
