@@ -34,6 +34,18 @@ public class CommentMongoAggregation {
         return results.getMappedResults();
     }
 
+    public Long countCommentsByPostPk(Long postPk) {
+        Aggregation aggregation = Aggregation.newAggregation(
+                Aggregation.match(Criteria.where("post_pk").is(postPk)),
+                Aggregation.count().as("commentCount")
+        );
+
+        AggregationResults<PostCommentCountProjection> results =
+                mongoTemplate.aggregate(aggregation, "comments", PostCommentCountProjection.class);
+
+        return results.getMappedResults().isEmpty() ? 0L : results.getMappedResults().get(0).getCommentCount();
+    }
+
     public List<PostCommentCountProjection> findTopPostsByCommentCount(Pageable pageable) {
         Aggregation aggregation = Aggregation.newAggregation(
                 Aggregation.match(Criteria.where("is_deleted").is(false)),

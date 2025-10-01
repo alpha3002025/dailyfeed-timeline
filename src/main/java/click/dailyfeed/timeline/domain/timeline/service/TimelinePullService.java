@@ -15,13 +15,11 @@ import click.dailyfeed.code.global.cache.RedisKeyConstant;
 import click.dailyfeed.code.global.web.page.DailyfeedPage;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.feign.domain.member.MemberFeignHelper;
-import click.dailyfeed.feign.domain.post.PostFeignHelper;
 import click.dailyfeed.pagination.mapper.PageMapper;
 import click.dailyfeed.timeline.domain.comment.entity.Comment;
 import click.dailyfeed.timeline.domain.comment.projection.PostCommentCountProjection;
 import click.dailyfeed.timeline.domain.comment.repository.jpa.CommentRepository;
 import click.dailyfeed.timeline.domain.comment.repository.mongo.CommentMongoAggregation;
-import click.dailyfeed.timeline.domain.comment.repository.mongo.CommentMongoRepository;
 import click.dailyfeed.timeline.domain.post.document.PostActivity;
 import click.dailyfeed.timeline.domain.post.entity.Post;
 import click.dailyfeed.timeline.domain.post.mapper.TimelinePostMapper;
@@ -55,12 +53,10 @@ public class TimelinePullService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final PostLikeMongoRepository postLikeMongoRepository;
-    private final CommentMongoRepository commentMongoRepository;
 
     private final CommentMongoAggregation commentMongoAggregation;
 
     private final MemberFeignHelper memberFeignHelper;
-    private final PostFeignHelper postFeignHelper;
     private final TimelinePostActivityRedisService timelinePostActivityRedisService;
 
     private final PageMapper pageMapper;
