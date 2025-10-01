@@ -25,6 +25,7 @@ import click.dailyfeed.timeline.domain.post.entity.Post;
 import click.dailyfeed.timeline.domain.post.mapper.TimelinePostMapper;
 import click.dailyfeed.timeline.domain.post.repository.jpa.PostRepository;
 import click.dailyfeed.timeline.domain.post.repository.mongo.PostActivityMongoRepository;
+import click.dailyfeed.timeline.domain.post.repository.mongo.PostLikeMongoAggregation;
 import click.dailyfeed.timeline.domain.post.repository.mongo.PostLikeMongoRepository;
 import click.dailyfeed.timeline.domain.timeline.mapper.TimelineMapper;
 import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostActivityRedisService;
@@ -55,6 +56,7 @@ public class TimelinePullService {
     private final PostLikeMongoRepository postLikeMongoRepository;
 
     private final CommentMongoAggregation commentMongoAggregation;
+    private final PostLikeMongoAggregation postLikeMongoAggregation;
 
     private final MemberFeignHelper memberFeignHelper;
     private final TimelinePostActivityRedisService timelinePostActivityRedisService;
@@ -84,7 +86,6 @@ public class TimelinePullService {
         ///  get Post Map (id = PostId)
         Set<Long> postIds = activities.getContent().stream().map(PostActivity::getPostId).collect(Collectors.toSet());
         PostDto.PostsBulkRequest request = PostDto.PostsBulkRequest.builder().ids(postIds).build();
-//        Map<Long, PostDto.Post> postMap = postFeignHelper.getPostMap(request, token, httpResponse);
         Map<Long, PostDto.Post> postMap = getPostListByIdsIn(request, token, httpResponse).stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
 
         return activities.stream()
@@ -168,19 +169,28 @@ public class TimelinePullService {
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_ORDER_BY_COMMENT_COUNT_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
     public DailyfeedScrollPage<PostDto.Post> getPostsOrderByCommentCount(Pageable pageable, String token, HttpServletResponse httpResponse) {
+        // 댓글 많은 순 데이터
         List<PostCommentCountProjection> statisticResult = commentMongoAggregation.findTopPostsByCommentCount(pageable);
+        // 글 post id 키값 추출
         Set<Long> postPks = statisticResult.stream().map(p -> p.getPostPk()).collect(Collectors.toSet());
 
+        // postMap
         Map<Long, PostDto.Post> postMap = getPostListByIdsIn(PostDto.PostsBulkRequest.builder().ids(postPks).build(), token, httpResponse)
                 .stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+        // 통계정보 (댓글수, 좋아요) 추출
+        PostStatisticsInternal statistics = queryPostStatistics(PostDto.PostsBulkRequest.builder().ids(postMap.keySet()).build());
 
         List<PostDto.Post> result = statisticResult.stream()
                 .map(projection -> {
+                    Long likeCount = 0L;
+                    if(statistics.postLikeCountStatisticsMap() != null && statistics.postLikeCountStatisticsMap().get(projection.getPostPk()) != null) {
+                        likeCount = statistics.postLikeCountStatisticsMap().get(projection.getPostPk()).getLikeCount();
+                    }
                     PostDto.Post post = postMap.get(projection.getPostPk());
                     return PostDto.Post.builder()
+                            .viewCount(post != null ? post.getViewCount() : 0L)
+                            .likeCount(likeCount)
                             .commentCount(projection.getCommentCount())
-                            .viewCount(post != null ? post.getViewCount() : 0)
-                            .likeCount(post != null ? post.getLikeCount() : 0)
                             .id(post != null ? post.getId() : null)
                             .authorId(post != null ? post.getAuthorId() : null)
                             .authorName(post != null ? post.getAuthorName() : "Unknown")
@@ -205,7 +215,7 @@ public class TimelinePullService {
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_ORDER_BY_POPULAR_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
     public DailyfeedScrollPage<PostDto.Post> getPopularPosts(Pageable pageable, String token, HttpServletResponse httpResponse) {
         Page<Post> page = postRepository.findPopularPostsNotDeleted(pageable);
-        List<PostDto.Post> result = mergeAuthorAndCommentCount(page.getContent(), token, httpResponse);
+        List<PostDto.Post> result = withAuthorsAndStatistics(page.getContent(), token, httpResponse);
         return pageMapper.fromJpaPageToDailyfeedScrollPage(page, result);
     }
 
@@ -214,16 +224,49 @@ public class TimelinePullService {
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_RECENT_ACTIVITY_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
     public DailyfeedScrollPage<PostDto.Post> getPostsByRecentActivity(Pageable pageable, String token, HttpServletResponse httpResponse) {
         Page<Post> page = postRepository.findPostsByRecentActivity(pageable);
-        List<PostDto.Post> result = mergeAuthorAndCommentCount(page.getContent(), token, httpResponse);
+        List<PostDto.Post> result = withAuthorsAndStatistics(page.getContent(), token, httpResponse);
         return pageMapper.fromJpaPageToDailyfeedScrollPage(page, result);
     }
 
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_DATE_RANGE, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
     public DailyfeedPage<PostDto.Post> getPostsByDateRange(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        Page<Post> posts = postRepository.findByCreatedDateBetweenAndNotDeleted(startDate, endDate, pageable);
-        return pageMapper.fromJpaPageToDailyfeedPage(posts, mergeAuthorAndCommentCount(posts.getContent(), token, httpResponse));
+        Page<Post> page = postRepository.findByCreatedDateBetweenAndNotDeleted(startDate, endDate, pageable);
+        List<PostDto.Post> result = withAuthorsAndStatistics(page.getContent(), token, httpResponse);
+        return pageMapper.fromJpaPageToDailyfeedPage(page, result);
     }
+
+    @Transactional(readOnly = true)
+    public List<PostDto.Post> withAuthorsAndStatistics(List<Post> posts, String token, HttpServletResponse httpResponse) {
+        // group by 및 키값 추출
+        Map<Long, Post> postMap = posts.stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+        Set<Long> authorIds = posts.stream().map(p -> p.getAuthorId()).collect(Collectors.toSet());
+
+        // 작성자 상새 정보
+        Map<Long, MemberProfileDto.Summary> authorsMap = memberFeignHelper.getMemberMap(authorIds, token, httpResponse);
+        // 통계정보 (댓글수, 좋아요) 추출
+        PostStatisticsInternal statistics = queryPostStatistics(PostDto.PostsBulkRequest.builder().ids(postMap.keySet()).build());
+
+        // 작성자 상세정보, 통계 정보 병합
+        return mergeAuthorAndStatistics(posts, authorsMap, statistics);
+    }
+
+    public List<PostDto.Post> mergeAuthorAndStatistics(List<Post> posts, Map<Long, MemberProfileDto.Summary> authorsMap, PostStatisticsInternal statistics){
+        return posts.stream()
+                .map(post -> {
+                    Long commentCount = 0L;
+                    Long likeCount = 0L;
+                    if(statistics.commentCountStatisticsMap() != null && statistics.commentCountStatisticsMap().get(post.getId()) != null){
+                        commentCount = statistics.commentCountStatisticsMap().get(post.getId()).getCommentCount();
+                    }
+                    if(statistics.postLikeCountStatisticsMap() != null && statistics.postLikeCountStatisticsMap().get(post.getId()) != null){
+                        likeCount = statistics.postLikeCountStatisticsMap().get(post.getId()).getLikeCount();
+                    }
+                    return timelinePostMapper.toPostDto(post, authorsMap.get(post.getAuthorId()), commentCount, likeCount);
+                })
+                .collect(Collectors.toList());
+    }
+
 
     public List<PostDto.Post> mergeAuthorAndCommentCount(List<Post> posts, String token, HttpServletResponse httpResponse){
         // (1) 작성자 id 추출
@@ -314,7 +357,7 @@ public class TimelinePullService {
     }
 
     public PostStatisticsInternal queryPostStatistics(PostDto.PostsBulkRequest request){
-        Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap = postLikeMongoRepository.countLikesByPostPks(request.getIds())
+        Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap = postLikeMongoAggregation.countLikesByPostPks(request.getIds())
                 .stream().map(timelineMapper::toPostLikeStatistics)
                 .collect(Collectors.toMap(o -> o.getPostPk(), o -> o));
 

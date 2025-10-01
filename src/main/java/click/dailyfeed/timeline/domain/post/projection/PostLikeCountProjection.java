@@ -9,5 +9,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PostLikeCountProjection {
     private Long postPk;
-    private Integer likeCount;
+    private Long likeCount;
 }

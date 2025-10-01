@@ -2,6 +2,7 @@ package click.dailyfeed.timeline.domain.comment.repository.mongo;
 
 import click.dailyfeed.timeline.domain.comment.projection.PostCommentCountProjection;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Set;
 
+@Slf4j
 @RequiredArgsConstructor
 @Component
 public class CommentMongoAggregation {
@@ -28,10 +30,18 @@ public class CommentMongoAggregation {
                         .andExclude("_id")
         );
 
+        log.info("countCommentsByPostPks aggregation query: {}", aggregation.toString());
+
         AggregationResults<PostCommentCountProjection> results =
                 mongoTemplate.aggregate(aggregation, "comments", PostCommentCountProjection.class);
 
-        return results.getMappedResults();
+        List<PostCommentCountProjection> mappedResults = results.getMappedResults();
+        log.info("countCommentsByPostPks results count: {}", mappedResults.size());
+        mappedResults.forEach(result ->
+            log.info("postPk: {}, commentCount: {}", result.getPostPk(), result.getCommentCount())
+        );
+
+        return mappedResults;
     }
 
     public Long countCommentsByPostPk(Long postPk) {
