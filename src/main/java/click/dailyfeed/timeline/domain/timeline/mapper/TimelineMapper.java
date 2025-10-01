@@ -93,6 +93,24 @@ public interface TimelineMapper {
                 .build();
     }
 
+    default PostDto.Post toPostDto(Post post, MemberProfileDto.Summary author, Boolean liked, PostDto.PostLikeCountStatistics postLikeStatistics, PostDto.PostCommentCountStatistics commentCountStatistics) {
+        return PostDto.Post.builder()
+                .id(post.getId())
+                .title(post.getTitle())
+                .content(post.getContent())
+                .authorId(author != null ? author.getId() : null)
+                .authorName(author != null ? author.getDisplayName() : null)
+                .authorHandle(author != null ? author.getMemberHandle() : null)
+                .authorAvatarUrl(author != null ? author.getAvatarUrl() : null)
+                .viewCount(post.getViewCount())
+                .likeCount(postLikeStatistics != null ? postLikeStatistics.getLikeCount() : 0L)
+                .commentCount(commentCountStatistics != null ? commentCountStatistics.getCommentCount() : 0L)
+                .liked(liked)
+                .createdAt(post.getCreatedAt())
+                .updatedAt(post.getUpdatedAt())
+                .build();
+    }
+
     default CommentDto.CommentSummary toCommentSummary(Comment comment){
         return CommentDto.CommentSummary.builder()
                 .id(comment.getId())

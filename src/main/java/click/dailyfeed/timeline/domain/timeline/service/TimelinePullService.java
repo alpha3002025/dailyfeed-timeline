@@ -291,7 +291,9 @@ public class TimelinePullService {
         Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap = statistics.postLikeCountStatisticsMap();
         Map<Long, PostDto.PostCommentCountStatistics> commentCountStatisticsMap = statistics.commentCountStatisticsMap();
 
-        return timelineMapper.toPostDto(post, authorSummary, postLikeCountStatisticsMap.get(postId), commentCountStatisticsMap.get(postId));
+        Set<Long> likedPostPks = postLikeMongoRepository.findByPostPkInAndMemberId(Set.of(postId), member.getId()).stream().map(d -> d.getPostPk()).collect(Collectors.toSet());
+
+        return timelineMapper.toPostDto(post, authorSummary, likedPostPks.contains(postId), postLikeCountStatisticsMap.get(postId), commentCountStatisticsMap.get(postId));
     }
 
     public DailyfeedPage<PostDto.Post> getPostsByAuthor(Long authorId, Pageable pageable, String token, HttpServletResponse httpResponse) {
