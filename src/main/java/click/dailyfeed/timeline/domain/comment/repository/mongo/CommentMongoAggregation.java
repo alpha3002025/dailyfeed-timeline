@@ -22,7 +22,7 @@ public class CommentMongoAggregation {
 
     public List<PostCommentCountProjection> countCommentsByPostPks(Set<Long> postPks) {
         Aggregation aggregation = Aggregation.newAggregation(
-                Aggregation.match(Criteria.where("post_pk").in(postPks)),
+                Aggregation.match(Criteria.where("post_pk").in(postPks).and("is_deleted").is(false)),
                 Aggregation.group("post_pk").count().as("commentCount"),
                 Aggregation.project()
                         .andExpression("_id").as("postPk")
@@ -46,7 +46,7 @@ public class CommentMongoAggregation {
 
     public Long countCommentsByPostPk(Long postPk) {
         Aggregation aggregation = Aggregation.newAggregation(
-                Aggregation.match(Criteria.where("post_pk").is(postPk)),
+                Aggregation.match(Criteria.where("post_pk").is(postPk).and("is_deleted").is(false)),
                 Aggregation.count().as("commentCount")
         );
 
