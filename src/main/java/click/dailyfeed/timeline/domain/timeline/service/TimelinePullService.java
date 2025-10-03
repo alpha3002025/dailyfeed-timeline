@@ -75,30 +75,19 @@ public class TimelinePullService {
             return List.of();
         }
 
-        LocalDateTime since = LocalDateTime.now().minusHours(hours);
         Pageable pageable = PageRequest.of(page, size);
 
-        Page<PostActivity> activities = postActivityMongoRepository.findFollowingActivitiesWhereFollowingIdsIn(followingsMap.keySet(), since, pageable);
-        if (activities.isEmpty()) {
-            return List.of();
-        }
-
-        /// postId 추출
-        Set<Long> postIds = activities.getContent().stream().map(PostActivity::getPostId).collect(Collectors.toSet());
-        PostDto.PostsBulkRequest request = PostDto.PostsBulkRequest.builder().ids(postIds).build();
         /// DB 조회
-        List<Post> posts = postRepository.findPostsByIdsInNotDeletedOrderByCreatedDateDesc(request.getIds());
-        /// 통계정보 추출, 병합
-        Map<Long, PostDto.Post> postMap = withAuthorsAndStatistics(memberId, posts, token, httpResponse).stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+        List<Post> posts = postRepository.findPostsByAuthorIdInAndNotDeletedOrderByCreatedDateDesc(followingsMap.keySet(), pageable);
 
-        /// 타임라인 리스트에 통계정보,Post 정보 병합
-        return activities.stream()
-                .filter(activity -> postMap.containsKey(activity.getPostId()))
-                .map(activity -> {
-                    PostDto.Post p = postMap.get(activity.getPostId());
+        /// 통계정보 추출, 병합
+        return withAuthorsAndStatistics(memberId, posts, token, httpResponse)
+                .stream()
+                .map(p -> {
                     MemberProfileDto.Summary author = followingsMap.get(p.getAuthorId());
-                    return timelineMapper.toTimelinePostActivity(p, p.getLiked(), activity, author);
-                }).toList();
+                    return timelineMapper.toTimelinePostActivity(p, p.getLiked(),author);
+                })
+                .collect(Collectors.toList());
     }
 
     public List<MemberProfileDto.Summary> fetchMyFollowingMembers(String token, HttpServletResponse httpResponse) {
