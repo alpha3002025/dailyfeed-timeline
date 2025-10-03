@@ -260,11 +260,12 @@ public class TimelineController {
     // 댓글 상세 조회
     @GetMapping("/comments/{commentId}")
     public DailyfeedServerResponse<CommentDto.Comment> getComment(
+            @AuthenticatedMemberProfileSummary MemberProfileDto.Summary requestedMember,
             @RequestHeader("Authorization") String authorizationHeader,
             HttpServletResponse httpResponse,
             @PathVariable Long commentId) {
 
-        CommentDto.Comment result = timelineService.getCommentById(commentId, authorizationHeader, httpResponse);
+        CommentDto.Comment result = timelineService.getCommentById(requestedMember.getId(), commentId, authorizationHeader, httpResponse);
         return DailyfeedServerResponse.<CommentDto.Comment>builder()
                 .status(HttpStatus.OK.value())
                 .result(ResponseSuccessCode.SUCCESS)

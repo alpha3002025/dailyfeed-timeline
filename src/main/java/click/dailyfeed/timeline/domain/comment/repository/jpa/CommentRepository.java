@@ -23,7 +23,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     Page<Comment> findTopLevelCommentsByPostWithPaging(@Param("post") Post post, Pageable pageable);
 
     // ID로 댓글 조회 (삭제되지 않은)
-    @Query("SELECT c FROM Comment c WHERE c.id = :id AND c.isDeleted = false")
+    @Query("SELECT c FROM Comment c INNER JOIN FETCH c.post WHERE c.id = :id AND c.isDeleted = false")
     Optional<Comment> findByIdAndNotDeleted(@Param("id") Long id);
 
     // 특정 댓글의 대댓글들을 페이징으로 조회
