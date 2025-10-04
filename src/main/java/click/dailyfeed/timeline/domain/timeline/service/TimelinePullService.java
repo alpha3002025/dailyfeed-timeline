@@ -15,12 +15,12 @@ import click.dailyfeed.code.global.cache.RedisKeyConstant;
 import click.dailyfeed.code.global.web.page.DailyfeedPage;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.feign.domain.member.MemberFeignHelper;
+import click.dailyfeed.kafka.domain.activity.publisher.MemberActivityKafkaPublisher;
 import click.dailyfeed.pagination.mapper.PageMapper;
 import click.dailyfeed.timeline.domain.comment.entity.Comment;
 import click.dailyfeed.timeline.domain.comment.projection.PostCommentCountProjection;
 import click.dailyfeed.timeline.domain.comment.repository.jpa.CommentRepository;
 import click.dailyfeed.timeline.domain.comment.repository.mongo.CommentMongoAggregation;
-import click.dailyfeed.timeline.domain.post.document.PostActivity;
 import click.dailyfeed.timeline.domain.post.entity.Post;
 import click.dailyfeed.timeline.domain.post.mapper.TimelinePostMapper;
 import click.dailyfeed.timeline.domain.post.repository.jpa.PostRepository;
@@ -58,6 +58,7 @@ public class TimelinePullService {
     private final CommentMongoAggregation commentMongoAggregation;
     private final PostLikeMongoAggregation postLikeMongoAggregation;
 
+    private final MemberActivityKafkaPublisher memberActivityKafkaPublisher;
     private final MemberFeignHelper memberFeignHelper;
     private final TimelinePostActivityRedisService timelinePostActivityRedisService;
 
@@ -75,30 +76,19 @@ public class TimelinePullService {
             return List.of();
         }
 
-        LocalDateTime since = LocalDateTime.now().minusHours(hours);
         Pageable pageable = PageRequest.of(page, size);
 
-        Page<PostActivity> activities = postActivityMongoRepository.findFollowingActivitiesWhereFollowingIdsIn(followingsMap.keySet(), since, pageable);
-        if (activities.isEmpty()) {
-            return List.of();
-        }
-
-        /// postId 추출
-        Set<Long> postIds = activities.getContent().stream().map(PostActivity::getPostId).collect(Collectors.toSet());
-        PostDto.PostsBulkRequest request = PostDto.PostsBulkRequest.builder().ids(postIds).build();
         /// DB 조회
-        List<Post> posts = postRepository.findPostsByIdsInNotDeletedOrderByCreatedDateDesc(request.getIds());
-        /// 통계정보 추출, 병합
-        Map<Long, PostDto.Post> postMap = withAuthorsAndStatistics(memberId, posts, token, httpResponse).stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+        List<Post> posts = postRepository.findPostsByAuthorIdInAndNotDeletedOrderByCreatedDateDesc(followingsMap.keySet(), pageable);
 
-        /// 타임라인 리스트에 통계정보,Post 정보 병합
-        return activities.stream()
-                .filter(activity -> postMap.containsKey(activity.getPostId()))
-                .map(activity -> {
-                    PostDto.Post p = postMap.get(activity.getPostId());
+        /// 통계정보 추출, 병합
+        return withAuthorsAndStatistics(memberId, posts, token, httpResponse)
+                .stream()
+                .map(p -> {
                     MemberProfileDto.Summary author = followingsMap.get(p.getAuthorId());
-                    return timelineMapper.toTimelinePostActivity(p, p.getLiked(), activity, author);
-                }).toList();
+                    return timelineMapper.toTimelinePostActivity(p, p.getLiked(),author);
+                })
+                .collect(Collectors.toList());
     }
 
     public List<MemberProfileDto.Summary> fetchMyFollowingMembers(String token, HttpServletResponse httpResponse) {
@@ -287,12 +277,18 @@ public class TimelinePullService {
         // 작성자 정보 조회
         MemberProfileDto.Summary authorSummary = memberFeignHelper.getMemberSummaryById(post.getAuthorId(), token, httpResponse);
 
+        // 본문 통계 정보 조회
         PostStatisticsInternal statistics = queryPostStatistics(PostDto.PostsBulkRequest.builder().ids(Set.of(postId)).build());
         Map<Long, PostDto.PostLikeCountStatistics> postLikeCountStatisticsMap = statistics.postLikeCountStatisticsMap();
         Map<Long, PostDto.PostCommentCountStatistics> commentCountStatisticsMap = statistics.commentCountStatisticsMap();
 
+        // liked 여부 표시를 위한 조회
         Set<Long> likedPostPks = postLikeMongoRepository.findByPostPkInAndMemberId(Set.of(postId), member.getId()).stream().map(d -> d.getPostPk()).collect(Collectors.toSet());
 
+        // 글 조회 이벤트 발행
+        memberActivityKafkaPublisher.publishPostReadEvent(member.getId(), postId);
+
+        // return
         return timelineMapper.toPostDto(post, authorSummary, likedPostPks.contains(postId), postLikeCountStatisticsMap.get(postId), commentCountStatisticsMap.get(postId));
     }
 
@@ -347,12 +343,17 @@ public class TimelinePullService {
     // 댓글 상세 조회
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENT_BY_ID, key = "#commentId")
-    public CommentDto.Comment getCommentById(Long commentId, String token, HttpServletResponse httpResponse) {
+    public CommentDto.Comment getCommentById(Long memberId, Long commentId, String token, HttpServletResponse httpResponse) {
+        // 댓글 정보 조회
         Comment comment = commentRepository.findByIdAndNotDeleted(commentId)
                 .orElseThrow(CommentNotFoundException::new);
 
+        // 댓글 작성자 정보 조합
         CommentDto.Comment commentDto = timelineMapper.toCommentNonRecursive(comment);
         mergeAuthorAtCommentList(List.of(commentDto), token, httpResponse);
+
+        // 멤버 활동 기록
+        memberActivityKafkaPublisher.publishCommentReadEvent(memberId, comment.getPost().getId(), commentId);
         return commentDto;
     }
 

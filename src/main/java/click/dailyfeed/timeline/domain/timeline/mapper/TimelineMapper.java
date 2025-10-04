@@ -26,6 +26,24 @@ public interface TimelineMapper {
                 .build();
     }
 
+    default TimelineDto.TimelinePostActivity toTimelinePostActivity(PostDto.Post p, Boolean liked, MemberProfileDto.Summary author) {
+        return TimelineDto.TimelinePostActivity
+                .builder()
+                .likeCount(p.getLikeCount())
+                .commentCount(p.getCommentCount())
+                .viewCount(p.getViewCount())
+                .liked(liked)
+                .id(p.getId())
+                .authorId(p.getAuthorId())
+                .authorName(author != null ? author.getDisplayName() : "Unknown")
+                .authorHandle(author != null ? author.getMemberHandle() : "unknown")
+                .authorAvatarUrl(author != null ? author.getAvatarUrl() : null)
+                .createdAt(p.getCreatedAt())
+                .title(p.getTitle())
+                .content(p.getContent())
+                .build();
+    }
+
     default TimelineDto.TimelinePostActivity toTimelinePostActivity(PostDto.Post p, Boolean liked, PostActivity activity, MemberProfileDto.Summary author) {
         return TimelineDto.TimelinePostActivity
                 .builder()

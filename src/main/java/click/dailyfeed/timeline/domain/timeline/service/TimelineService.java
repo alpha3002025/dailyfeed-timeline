@@ -116,8 +116,8 @@ public class TimelineService {
         return timelinePullService.getCommentsByUser(memberId, pageable, token, httpResponse);
     }
 
-    public CommentDto.Comment getCommentById(Long commentId, String token, HttpServletResponse httpResponse) {
-        return timelinePullService.getCommentById(commentId,token,httpResponse);
+    public CommentDto.Comment getCommentById(Long memberId, Long commentId, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getCommentById(memberId, commentId,token,httpResponse);
     }
 
     public DailyfeedPage<CommentDto.Comment> getRepliesByParent(Long commentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
