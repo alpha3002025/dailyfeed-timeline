@@ -40,7 +40,7 @@ spring:
       write-dates-as-timestamps: false
   ## kafka
   kafka:
-    bootstrap-servers: ${KAFKA_HOST:localhost}:29092,${KAFKA_HOST:localhost}:29093,${KAFKA_HOST:localhost}:29094
+    bootstrap-servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:9092}
     listener:
       ack-mode: manual_immediate # 수동 커밋 (TODO 확인 필요)
       concurrency: 3 # 컨슈머 스레드 수 (TODO 확인 필요)
@@ -133,21 +133,9 @@ infrastructure:
       database: dailyfeed
   redis:
     event-queue:
-      post-activity-event:
-        list-key: POST_ACTIVITY_EVENT_HISTORY
-        dead-letter-list-key: POST_ACTIVITY_EVENT_HISTORY_DEAD
-        batch-size: 1000
-      post-like-activity-event:
-        list-key: POST_LIKE_ACTIVITY_EVENT_HISTORY
-        dead-letter-list-key: POST_LIKE_ACTIVITY_EVENT_HISTORY_DEAD
-        batch-size: 1000
-      comment-activity-event:
-        list-key: COMMENT_ACTIVITY_EVENT_HISTORY
-        dead-letter-list-key: COMMENT_ACTIVITY_EVENT_HISTORY_DEAD
-        batch-size: 1000
-      comment-like-activity-event:
-        list-key: COMMENT_LIKE_ACTIVITY_EVENT_HISTORY
-        dead-letter-list-key: COMMENT_LIKE_ACTIVITY_EVENT_HISTORY_DEAD
+      member-activity-event:
+        list-key: MEMBER_ACTIVITY_EVENT_HISTORY
+        dead-letter-list-key: MEMBER_ACTIVITY_EVENT_HISTORY_DEAD
         batch-size: 1000
   kafka:
     default:
@@ -157,23 +145,5 @@ infrastructure:
         compression: snappy
         retention-ms: 604800000 # 7일
         operation-timeout-seconds: 30
-    topic:
-      post-activity:
-        prefix: post-activity-
-        prefix-date-format: yyyyMMdd
-        retention-ms: 604800000 # 7일
-    consumers:
-      # Post Activity Consumer
-      post-activity:
-        group-id: post-activity-consumer-group
-        concurrency: 3
-      # User Activity Consumer 설정
-      user-activity:
-        group-id: user-activity-consumer-group
-        concurrency: 2
-      # Notification Consumer 설정
-      notification:
-        group-id: notification-consumer-group
-        concurrency: 1
 server:
   port: 8082
