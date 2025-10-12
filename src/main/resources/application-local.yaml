@@ -38,7 +38,7 @@ spring:
       uri: ${MONGODB_CONNECTION_URI:mongodb://localhost:27017/dailyfeed?directConnection=true}
   ## kafka
   kafka:
-    bootstrap-servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:9092}
+    bootstrap-servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:29092}
     listener:
       ack-mode: manual_immediate # 수동 커밋
       concurrency: 3 # 컨슈머 스레드 수
