@@ -78,33 +78,15 @@ public class TimelineController {
 
     // 최근 활동이 있는 게시글 조회
     // (timeline 으로 이관 예정 (/timeline/feed/latest))
-    @GetMapping("/posts/recent-activity")
+    @GetMapping("/posts/recent-activities")
     public DailyfeedScrollResponse<DailyfeedScrollPage<PostDto.Post>> getPostsByRecentActivity(
             @AuthenticatedMemberProfileSummary MemberProfileDto.Summary member,
             @RequestHeader("Authorization") String token,
             HttpServletResponse httpResponse,
             @PageableDefault(page = 0, size = 20) Pageable pageable) {
 
-        DailyfeedScrollPage<PostDto.Post> result = timelineService.getPostsByRecentActivity(member.getMemberId(), pageable, token, httpResponse);
+        DailyfeedScrollPage<PostDto.Post> result = timelineService.getPostsByRecentActivities(member.getMemberId(), pageable, token, httpResponse);
         return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
-                .status(HttpStatus.OK.value())
-                .result(ResponseSuccessCode.SUCCESS)
-                .data(result)
-                .build();
-    }
-
-    // 특정 기간 내 게시글 조회
-    @GetMapping("/posts/date-range")
-    public DailyfeedPageResponse<PostDto.Post> getPostsByDateRange(
-            @AuthenticatedMemberProfileSummary MemberProfileDto.Summary member,
-            @RequestHeader("Authorization") String token,
-            HttpServletResponse httpResponse,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
-            @PageableDefault(page = 0, size = 20) Pageable pageable) {
-
-        DailyfeedPage<PostDto.Post> result = timelineService.getPostsByDateRange(member.getMemberId(), startDate, endDate, pageable, token, httpResponse);
-        return DailyfeedPageResponse.<PostDto.Post>builder()
                 .status(HttpStatus.OK.value())
                 .result(ResponseSuccessCode.SUCCESS)
                 .data(result)
@@ -114,7 +96,7 @@ public class TimelineController {
     /// my posts
     @GetMapping("/posts")
     @Operation(summary = "내가 쓴 개시글 목록 조회", description = "내가 쓴 개시글 목록을 조회합니다.")
-    public DailyfeedPageResponse<PostDto.Post> getPosts(
+    public DailyfeedScrollResponse<DailyfeedScrollPage<PostDto.Post>> getPosts(
             @AuthenticatedMember MemberDto.Member member,
             HttpServletResponse httpResponse,
             @RequestHeader("Authorization") String token,
@@ -125,8 +107,8 @@ public class TimelineController {
                     direction = Sort.Direction.DESC
             ) Pageable pageable
     ) {
-        DailyfeedPage<PostDto.Post> result = timelineService.getMyPosts(member, pageable, token, httpResponse);
-        return DailyfeedPageResponse.<PostDto.Post>builder()
+        DailyfeedScrollPage<PostDto.Post> result = timelineService.getMyPosts(member, pageable, token, httpResponse);
+        return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
                 .status(HttpStatus.OK.value())
                 .result(ResponseSuccessCode.SUCCESS)
                 .data(result)
@@ -152,7 +134,7 @@ public class TimelineController {
 
     @Operation(summary = "특정 사용자의 게시글 목록 조회", description = "특정 사용자가 작성한 게시글을 페이징하여 조회합니다.")
     @GetMapping("/posts/authors/{authorId}")
-    public DailyfeedPageResponse<PostDto.Post> getPostsByAuthor(
+    public DailyfeedScrollResponse<DailyfeedScrollPage<PostDto.Post>> getPostsByAuthor(
             @AuthenticatedMember MemberDto.Member member,
             HttpServletResponse httpResponse,
             @RequestHeader("Authorization") String token,
@@ -164,8 +146,8 @@ public class TimelineController {
                     direction = Sort.Direction.DESC
             ) Pageable pageable) {
 
-        DailyfeedPage<PostDto.Post> result = timelineService.getPostsByAuthor(authorId, pageable, token, httpResponse);
-        return DailyfeedPageResponse.<PostDto.Post>builder()
+        DailyfeedScrollPage<PostDto.Post> result = timelineService.getPostsByAuthor(authorId, pageable, token, httpResponse);
+        return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
                 .status(HttpStatus.OK.value())
                 .result(ResponseSuccessCode.SUCCESS)
                 .data(result)
@@ -195,13 +177,13 @@ public class TimelineController {
     /// comments
     // 내 댓글 목록
     @GetMapping("/comments")
-    public DailyfeedPageResponse<CommentDto.CommentSummary> getMyComments(
+    public DailyfeedScrollResponse<DailyfeedScrollPage<CommentDto.Comment>> getMyComments(
             @RequestHeader("Authorization") String authorizationHeader,
             HttpServletResponse httpResponse,
             @AuthenticatedMember MemberDto.Member requestedMember,
-            @PageableDefault(page = 0, size = 20, sort = "updatedAt") Pageable pageable) {
-        DailyfeedPage<CommentDto.CommentSummary> result = timelineService.getMyComments(requestedMember.getId(), pageable, authorizationHeader, httpResponse);
-        return DailyfeedPageResponse.<CommentDto.CommentSummary>builder()
+            @PageableDefault(page = 0, size = 20, sort = "createdAt") Pageable pageable) {
+        DailyfeedScrollPage<CommentDto.Comment> result = timelineService.getMyComments(requestedMember.getId(), pageable, authorizationHeader, httpResponse);
+        return DailyfeedScrollResponse.<DailyfeedScrollPage<CommentDto.Comment>>builder()
                 .status(HttpStatus.OK.value())
                 .result(ResponseSuccessCode.SUCCESS)
                 .data(result)
@@ -209,14 +191,10 @@ public class TimelineController {
     }
 
     ///  /comments/post/{postId}    ///
-    /// 참고)
-    ///   Post Controller 내에서 구성하는게 이론적으로는 적절하지만,
-    ///   게시글 서비스와 댓글 서비스간의 경계를 구분하기로 결정했기에 댓글 관리의 주체를 CommentController 로 지정
-    ///   특정 게시글의 댓글 목록 조회 (계층구조)
     // 특정 게시글의 댓글 목록을 페이징으로 조회
     @GetMapping("/posts/{postId}/comments")
-    public DailyfeedPageResponse<CommentDto.Comment> getCommentsByPost(
-            @AuthenticatedMember MemberDto.Member requestedMember,
+    public DailyfeedScrollResponse<DailyfeedScrollPage<CommentDto.Comment>> getCommentsByPost(
+            @AuthenticatedMemberProfileSummary MemberProfileDto.Summary requestedMember,
             @RequestHeader("Authorization") String authorizationHeader,
             HttpServletResponse httpResponse,
             @PathVariable Long postId,
@@ -227,10 +205,10 @@ public class TimelineController {
                     direction = Sort.Direction.DESC
             ) Pageable pageable) {
 
-        DailyfeedPage<CommentDto.Comment> result = timelineService.getCommentsByPostWithPaging(postId, pageable, authorizationHeader, httpResponse);
-        return DailyfeedPageResponse.<CommentDto.Comment>builder()
-                .status(HttpStatus.OK.value())
+        DailyfeedScrollPage<CommentDto.Comment> result = timelineService.getCommentsByPostWithReplyCount(requestedMember, postId, pageable, authorizationHeader, httpResponse);
+        return DailyfeedScrollResponse.<DailyfeedScrollPage<CommentDto.Comment>>builder()
                 .result(ResponseSuccessCode.SUCCESS)
+                .status(HttpStatus.OK.value())
                 .data(result)
                 .build();
     }
@@ -238,7 +216,7 @@ public class TimelineController {
     /// /comments/member/{memberId}     ///
     // 특정 사용자의 댓글 목록
     @GetMapping("/members/{memberId}/comments")
-    public DailyfeedPageResponse<CommentDto.CommentSummary> getCommentsByUser(
+    public DailyfeedScrollResponse<DailyfeedScrollPage<CommentDto.Comment>> getCommentsByUser(
             @RequestHeader("Authorization") String authorizationHeader,
             HttpServletResponse httpResponse,
             @PathVariable Long memberId,
@@ -249,8 +227,8 @@ public class TimelineController {
                     direction = Sort.Direction.DESC
             ) Pageable pageable) {
 
-        DailyfeedPage<CommentDto.CommentSummary> result = timelineService.getCommentsByUser(memberId, pageable, authorizationHeader, httpResponse);
-        return DailyfeedPageResponse.<CommentDto.CommentSummary>builder()
+        DailyfeedScrollPage<CommentDto.Comment> result = timelineService.getCommentsByUser(memberId, pageable, authorizationHeader, httpResponse);
+        return DailyfeedScrollResponse.<DailyfeedScrollPage<CommentDto.Comment>>builder()
                 .status(HttpStatus.OK.value())
                 .result(ResponseSuccessCode.SUCCESS)
                 .data(result)
@@ -273,9 +251,9 @@ public class TimelineController {
                 .build();
     }
 
-    // 대댓글 목록 조회
     @GetMapping("/comments/{commentId}/replies")
-    public DailyfeedPageResponse<CommentDto.Comment> getRepliesByParent(
+    public DailyfeedScrollResponse<DailyfeedScrollPage<CommentDto.Comment>> getRepliesByParent(
+            @AuthenticatedMemberProfileSummary MemberProfileDto.Summary member,
             @RequestHeader("Authorization") String authorizationHeader,
             HttpServletResponse httpResponse,
             @PathVariable Long commentId,
@@ -286,8 +264,27 @@ public class TimelineController {
                     direction = Sort.Direction.DESC
             ) Pageable pageable) {
 
-        DailyfeedPage<CommentDto.Comment> result = timelineService.getRepliesByParent(commentId, pageable, authorizationHeader, httpResponse);
-        return DailyfeedPageResponse.<CommentDto.Comment>builder()
+        DailyfeedScrollPage<CommentDto.Comment> result = timelineService.getRepliesByParent(member, commentId, pageable, authorizationHeader, httpResponse);
+        return DailyfeedScrollResponse.<DailyfeedScrollPage<CommentDto.Comment>>builder()
+                .status(HttpStatus.OK.value())
+                .result(ResponseSuccessCode.SUCCESS)
+                .data(result)
+                .build();
+    }
+
+    /// ADMIN (SEASON 2)
+    // (admin) SEASON2 특정 기간 내 게시글 조회
+    @GetMapping("/posts/date-range")
+    public DailyfeedPageResponse<PostDto.Post> getPostsByDateRange(
+            @AuthenticatedMemberProfileSummary MemberProfileDto.Summary member,
+            @RequestHeader("Authorization") String token,
+            HttpServletResponse httpResponse,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            @PageableDefault(page = 0, size = 20) Pageable pageable) {
+
+        DailyfeedPage<PostDto.Post> result = timelineService.getPostsByDateRange(member.getMemberId(), startDate, endDate, pageable, token, httpResponse);
+        return DailyfeedPageResponse.<PostDto.Post>builder()
                 .status(HttpStatus.OK.value())
                 .result(ResponseSuccessCode.SUCCESS)
                 .data(result)

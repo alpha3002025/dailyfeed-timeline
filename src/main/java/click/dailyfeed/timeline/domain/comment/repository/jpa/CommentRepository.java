@@ -2,47 +2,52 @@ package click.dailyfeed.timeline.domain.comment.repository.jpa;
 
 import click.dailyfeed.timeline.domain.comment.entity.Comment;
 import click.dailyfeed.timeline.domain.post.entity.Post;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface CommentRepository extends JpaRepository<Comment, Long> {
-    // 특정 댓글과 모든 자식 댓글들을 소프트 삭제
-    @Modifying
-    @Query("UPDATE Comment c SET c.isDeleted = true, c.createdAt = CURRENT_TIMESTAMP WHERE c.id = :commentId OR c.parent.id = :commentId")
-    void softDeleteCommentAndChildren(@Param("commentId") Long commentId);
-
-    // 특정 게시글의 최상위 댓글들을 페이징으로 조회
+    // 특정 게시글의 최상위 댓글들을 Slice 조회 (Scroll 용도)
     @Query("SELECT c FROM Comment c WHERE c.post = :post AND c.parent IS NULL AND c.isDeleted = false ORDER BY c.createdAt ASC")
-    Page<Comment> findTopLevelCommentsByPostWithPaging(@Param("post") Post post, Pageable pageable);
+    Slice<Comment> findTopLevelCommentsByPostWithPaging(@Param("post") Post post, Pageable pageable);
 
     // ID로 댓글 조회 (삭제되지 않은)
     @Query("SELECT c FROM Comment c INNER JOIN FETCH c.post WHERE c.id = :id AND c.isDeleted = false")
     Optional<Comment> findByIdAndNotDeleted(@Param("id") Long id);
 
-    // 특정 댓글의 대댓글들을 페이징으로 조회
+    // 특정 댓글의 대댓글들을 Slice 조회 (Scroll 용도)
     @Query("SELECT c FROM Comment c WHERE c.parent = :parent AND c.isDeleted = false ORDER BY c.createdAt ASC")
-    Page<Comment> findChildrenByParentWithPaging(@Param("parent") Comment parent, Pageable pageable);
+    Slice<Comment> findChildrenByParentSlice(@Param("parent") Comment parent, Pageable pageable);
 
-    interface PostCommentCountProjection {
-        Long getPostId();
-        Long getCommentCount();
-    }
-
-    // 글 하나에 대한 댓글 수 조회
-    @Query("SELECT p.id as postId, COUNT(c.id) as commentCount " +
-            "FROM Post p LEFT JOIN Comment c ON p.id = c.post.id AND c.isDeleted = false " +
-            "WHERE p IN :posts AND p.isDeleted = false " +
-            "GROUP BY p.id")
-    List<PostCommentCountProjection> findCommentCountsByPosts(@Param("posts") List<Post> posts);
-
-    // 특정 사용자의 댓글들
+    // 특정 사용자의 댓글들 (Scroll 용도)
     @Query("SELECT c FROM Comment c WHERE c.authorId = :authorId AND c.isDeleted = false ORDER BY c.createdAt DESC")
-    Page<Comment> findByAuthorIdAndNotDeleted(@Param("authorId") Long authorId, Pageable pageable);
+    Slice<Comment> findByAuthorIdAndNotDeleted(@Param("authorId") Long authorId, Pageable pageable);
+
+    // 특정 게시글의 최상위 댓글들을 대댓글 개수와 함께 조회 (Scroll 용도)
+    // 대댓글 개수를 포함한 Projection 을 반환
+    @Query("SELECT c FROM Comment c INNER JOIN FETCH c.post WHERE c.post.id = :postId AND c.parent IS NULL AND c.isDeleted = false ORDER BY c.createdAt ASC")
+    Slice<Comment> findTopLevelCommentsByPostId(@Param("postId") Long postId, Pageable pageable);
+
+    // 특정 댓글들의 대댓글 개수를 조회
+    @Query("SELECT c.parent.id as parentId, COUNT(c) as replyCount " +
+           "FROM Comment c " +
+           "WHERE c.parent.id IN :parentIds AND c.isDeleted = false " +
+           "GROUP BY c.parent.id")
+    List<ReplyCountProjection> countRepliesByParentIds(@Param("parentIds") Set<Long> parentIds);
+
+    // 특정 댓글(parentId)의 대댓글 개수 를 조회
+    @Query("SELECT count(c) FROM Comment c WHERE c.parent.id = :parentId AND c.isDeleted = false")
+    Long countCommentByParentId(Long parentId);
+
+    // 대댓글 개수 조회를 위한 Projection 인터페이스
+    interface ReplyCountProjection {
+        Long getParentId();
+        Long getReplyCount();
+    }
 }

@@ -1,10 +1,8 @@
 package click.dailyfeed.timeline;
 
-import click.dailyfeed.timeline.domain.post.repository.mongo.PostActivityMongoRepository;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.FilterType;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.mongodb.config.EnableMongoAuditing;
@@ -18,11 +16,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableJpaRepositories(
         basePackages = "click.dailyfeed.timeline.domain.**.repository.jpa",
         entityManagerFactoryRef = "entityManagerFactory",
-        transactionManagerRef = "transactionManager",
-        excludeFilters = @ComponentScan.Filter(
-                type = FilterType.ASSIGNABLE_TYPE,
-                classes = PostActivityMongoRepository.class
-        )
+        transactionManagerRef = "transactionManager"
 )
 @EnableMongoRepositories(
         basePackages = "click.dailyfeed.timeline.domain.**.repository.mongo",
