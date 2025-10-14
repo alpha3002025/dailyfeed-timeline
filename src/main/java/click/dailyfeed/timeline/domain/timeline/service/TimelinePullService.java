@@ -18,6 +18,7 @@ import click.dailyfeed.feign.domain.member.MemberFeignHelper;
 import click.dailyfeed.kafka.domain.activity.publisher.MemberActivityKafkaPublisher;
 import click.dailyfeed.pagination.mapper.PageMapper;
 import click.dailyfeed.timeline.domain.comment.entity.Comment;
+import click.dailyfeed.timeline.domain.comment.projection.CommentWithReplyCount;
 import click.dailyfeed.timeline.domain.comment.projection.PostCommentCountProjection;
 import click.dailyfeed.timeline.domain.comment.repository.jpa.CommentRepository;
 import click.dailyfeed.timeline.domain.comment.repository.mongo.CommentMongoAggregation;
@@ -36,6 +37,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -164,18 +166,18 @@ public class TimelinePullService {
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_ORDER_BY_POPULAR_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
     public DailyfeedScrollPage<PostDto.Post> getPopularPosts(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        Page<Post> page = postRepository.findPopularPostsNotDeleted(pageable);
-        List<PostDto.Post> result = withAuthorsAndStatistics(requestedMemberId, page.getContent(), token, httpResponse);
-        return pageMapper.fromJpaPageToDailyfeedScrollPage(page, result);
+        Slice<Post> slice = postRepository.findPopularPostsNotDeleted(pageable);
+        List<PostDto.Post> result = withAuthorsAndStatistics(requestedMemberId, slice.getContent(), token, httpResponse);
+        return pageMapper.fromJpaSliceToDailyfeedScrollPage(slice, result);
     }
 
     // 최근 활동이 있는 글 조회
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_RECENT_ACTIVITY_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
-    public DailyfeedScrollPage<PostDto.Post> getPostsByRecentActivity(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        Page<Post> page = postRepository.findPostsByRecentActivity(pageable);
-        List<PostDto.Post> result = withAuthorsAndStatistics(requestedMemberId, page.getContent(), token, httpResponse);
-        return pageMapper.fromJpaPageToDailyfeedScrollPage(page, result);
+    public DailyfeedScrollPage<PostDto.Post> getPostsByRecentActivities(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        Slice<Post> slice = postRepository.findPostsByRecentActivities(pageable);
+        List<PostDto.Post> result = withAuthorsAndStatistics(requestedMemberId, slice.getContent(), token, httpResponse);
+        return pageMapper.fromJpaSliceToDailyfeedScrollPage(slice, result);
     }
 
     @Transactional(readOnly = true)
@@ -258,10 +260,10 @@ public class TimelinePullService {
                 .collect(Collectors.toList());
     }
 
-    public DailyfeedPage<PostDto.Post> getMyPosts(MemberDto.Member requestedMember, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        Page<Post> page = postRepository.findByAuthorIdAndNotDeleted(requestedMember.getId(), pageable);
+    public DailyfeedScrollPage<PostDto.Post> getMyPosts(MemberDto.Member requestedMember, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        Slice<Post> page = postRepository.findByAuthorIdAndNotDeleted(requestedMember.getId(), pageable);
         List<PostDto.Post> posts = withAuthorsAndStatistics(requestedMember.getId(), page.getContent(), token, httpResponse);
-        return pageMapper.fromJpaPageToDailyfeedPage(page, posts);
+        return pageMapper.fromJpaSliceToDailyfeedScrollPage(page, posts);
     }
 
     @Cacheable(value = RedisKeyConstant.PostService.WEB_GET_POST_BY_ID, key = "#postId", cacheManager = "redisCacheManager")
@@ -292,14 +294,14 @@ public class TimelinePullService {
         return timelineMapper.toPostDto(post, authorSummary, likedPostPks.contains(postId), postLikeCountStatisticsMap.get(postId), commentCountStatisticsMap.get(postId));
     }
 
-    public DailyfeedPage<PostDto.Post> getPostsByAuthor(Long authorId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<PostDto.Post> getPostsByAuthor(Long authorId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         MemberDto.Member author = memberFeignHelper.getMemberById(authorId, token, httpResponse);
         if (author == null) {
             throw new MemberNotFoundException(() -> "삭제된 사용자입니다");
         }
 
-        Page<Post> posts = postRepository.findByAuthorIdAndNotDeleted(author.getId(), pageable);
-        return pageMapper.fromJpaPageToDailyfeedPage(posts, mergeAuthorAndCommentCount(posts.getContent(), token, httpResponse));
+        Slice<Post> posts = postRepository.findByAuthorIdAndNotDeleted(author.getId(), pageable);
+        return pageMapper.fromJpaSliceToDailyfeedScrollPage(posts, mergeAuthorAndCommentCount(posts.getContent(), token, httpResponse));
     }
 
     /// helpers (with transactional)
@@ -322,21 +324,61 @@ public class TimelinePullService {
 
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_MEMBER_ID, key = "'memberId_'+#memberId+'_page_'+#page+'_size_'+#size")
-    public DailyfeedPage<CommentDto.CommentSummary> getMyComments(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        Page<Comment> comments = commentRepository.findByAuthorIdAndNotDeleted(memberId, pageable);
+    public DailyfeedScrollPage<CommentDto.CommentSummary> getMyComments(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        Slice<Comment> comments = commentRepository.findByAuthorIdAndNotDeleted(memberId, pageable);
         return mergeAuthorData(comments, token, httpResponse);
     }
 
-    public DailyfeedPage<CommentDto.Comment> getCommentsByPostWithPaging(Long postId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<CommentDto.Comment> getCommentsByPostWithPaging(Long postId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         Post post = getPostByIdOrThrow(postId);
-        Page<Comment> comments = commentRepository.findTopLevelCommentsByPostWithPaging(post, pageable);
+        Slice<Comment> comments = commentRepository.findTopLevelCommentsByPostWithPaging(post, pageable);
         return mergeAuthorDataRecursively(comments, token, httpResponse);
+    }
+
+    /**
+     * 특정 게시글의 최상위 댓글 목록을 대댓글 개수와 함께 조회
+     * 각 댓글에 대댓글 개수(replyCount)가 포함된 Projection을 반환
+     */
+    public DailyfeedScrollPage<CommentWithReplyCount> getCommentsByPostWithReplyCount(Long postId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        // 1. 최상위 댓글 조회
+        Slice<Comment> comments = commentRepository.findTopLevelCommentsByPostId(postId, pageable);
+
+        if (comments.isEmpty()) {
+            return pageMapper.emptyScrollPage();
+        }
+
+        // 2. 댓글 ID 목록 추출
+        List<Long> commentIds = comments.getContent().stream()
+                .map(Comment::getId)
+                .collect(Collectors.toList());
+
+        // 3. 각 댓글의 대댓글 개수 조회
+        List<CommentRepository.ReplyCountProjection> replyCounts =
+                commentRepository.countRepliesByParentIds(commentIds);
+
+        // 4. 댓글 ID를 키로 하는 대댓글 개수 맵 생성
+        Map<Long, Long> replyCountMap = replyCounts.stream()
+                .collect(Collectors.toMap(
+                        CommentRepository.ReplyCountProjection::getParentId,
+                        CommentRepository.ReplyCountProjection::getReplyCount
+                ));
+
+        // 5. Comment 엔티티를 CommentWithReplyCount Projection으로 변환
+        List<CommentWithReplyCount> result = comments.getContent().stream()
+                .map(comment -> {
+                    Long replyCount = replyCountMap.getOrDefault(comment.getId(), 0L);
+                    return CommentWithReplyCount.from(comment, replyCount);
+                })
+                .collect(Collectors.toList());
+
+        // 6. DailyfeedScrollPage로 변환하여 반환
+        return pageMapper.fromJpaSliceToDailyfeedScrollPage(comments, result);
     }
 
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_MEMBER_ID, key = "'memberId_'+#memberId+'_page_'+#pageable.getPageNumber() +'_size_'+#pageable.getPageSize()")
-    public DailyfeedPage<CommentDto.CommentSummary> getCommentsByUser(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        Page<Comment> comments = commentRepository.findByAuthorIdAndNotDeleted(memberId, pageable);
+    public DailyfeedScrollPage<CommentDto.CommentSummary> getCommentsByUser(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        Slice<Comment> comments = commentRepository.findByAuthorIdAndNotDeleted(memberId, pageable);
         return mergeAuthorData(comments, token, httpResponse);
     }
 
@@ -357,14 +399,14 @@ public class TimelinePullService {
         return commentDto;
     }
 
-    // 대댓글 목록 조회
+    // TODO :: SEASON2 대댓글 목록 조회 (Frontend 는 아직 적용 x)
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_PARENT_ID, key = "'parentId_'+#parentId+'_page_'+#page+'_size_'+#size")
-    public DailyfeedPage<CommentDto.Comment> getRepliesByParent(Long parentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<CommentDto.Comment> getRepliesByParent(Long parentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         Comment parentComment = commentRepository.findByIdAndNotDeleted(parentId)
                 .orElseThrow(ParentCommentNotFoundException::new);
 
-        Page<Comment> replies = commentRepository.findChildrenByParentWithPaging(parentComment, pageable);
+        Slice<Comment> replies = commentRepository.findChildrenByParentSlice(parentComment, pageable);
 
         List<CommentDto.Comment> commentList = replies.getContent().stream()
                 .map(timelineMapper::toCommentNonRecursive)
@@ -372,7 +414,7 @@ public class TimelinePullService {
 
         mergeAuthorAtCommentList(commentList, token, httpResponse);
 
-        return pageMapper.fromJpaPageToDailyfeedPage(replies, commentList);
+        return pageMapper.fromJpaSliceToDailyfeedScrollPage(replies, commentList);
     }
 
     private record PostStatisticsInternal(
@@ -381,9 +423,9 @@ public class TimelinePullService {
     ){}
 
     /// helpers (internal)
-    public DailyfeedPage<CommentDto.CommentSummary> mergeAuthorData(Page<Comment> commentsPage, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<CommentDto.CommentSummary> mergeAuthorData(Slice<Comment> commentsPage, String token, HttpServletResponse httpResponse) {
         List<CommentDto.CommentSummary> summaries = commentsPage.getContent().stream().map(timelineMapper::toCommentSummary).collect(Collectors.toList());
-        if (summaries.isEmpty()) return pageMapper.emptyPage();
+        if (summaries.isEmpty()) return pageMapper.emptyScrollPage();
 
         Set<Long> authorIds = summaries.stream()
                 .map(CommentDto.CommentSummary::getAuthorId)
@@ -398,14 +440,14 @@ public class TimelinePullService {
             }
         });
 
-        return pageMapper.fromJpaPageToDailyfeedPage(commentsPage, summaries);
+        return pageMapper.fromJpaSliceToDailyfeedScrollPage(commentsPage, summaries);
     }
 
     // 계층구조 댓글에 작성자 정보 추가 (재귀적)
-    private DailyfeedPage<CommentDto.Comment> mergeAuthorDataRecursively(Page<Comment> commentsPage, String token, HttpServletResponse httpResponse) {
-        if(commentsPage.isEmpty()) return pageMapper.emptyPage();
+    private DailyfeedScrollPage<CommentDto.Comment> mergeAuthorDataRecursively(Slice<Comment> commentsSlice, String token, HttpServletResponse httpResponse) {
+        if(!commentsSlice.hasContent()) return pageMapper.emptyScrollPage();
 
-        List<CommentDto.Comment> commentList = commentsPage.getContent().stream().map(timelineMapper::toCommentNonRecursive).collect(Collectors.toList());
+        List<CommentDto.Comment> commentList = commentsSlice.getContent().stream().map(timelineMapper::toCommentNonRecursive).collect(Collectors.toList());
 
         Set<Long> authorIds = commentList.stream()
                 .map(CommentDto.Comment::getAuthorId)
@@ -420,7 +462,7 @@ public class TimelinePullService {
             }
         });
 
-        return pageMapper.fromJpaPageToDailyfeedPage(commentsPage, commentList);
+        return pageMapper.fromJpaSliceToDailyfeedScrollPage(commentsSlice, commentList);
     }
 
     private void mergeAuthorAtCommentList(List<CommentDto.Comment> comments, String token, HttpServletResponse httpResponse){
@@ -437,6 +479,9 @@ public class TimelinePullService {
                 MemberProfileDto.Summary author = authorMap.get(comment.getAuthorId());
                 if (author != null) {
                     comment.updateAuthor(author);
+                }
+                else{
+                    comment.updateDeletedAuthor();
                 }
             });
         } catch (Exception e) {

@@ -25,7 +25,8 @@ public class CommentMongoAggregation {
                 Aggregation.match(Criteria.where("post_pk").in(postPks).and("is_deleted").is(false)),
                 Aggregation.group("post_pk").count().as("commentCount"),
                 Aggregation.project()
-                        .andExpression("_id").as("postPk")
+                        .andExpression("_id").as("postPk")  // 위에서 groupBy 의 key(_id) 는 post_pk 였기에 projection 의 _id 에 대한 alias 를 postPk 로 지정
+                                                                                // MongoDB Aggregation 에서 $group 의 결과는 항상 _id 필드에 저장
                         .andInclude("commentCount")
                         .andExclude("_id")
         );
@@ -64,7 +65,8 @@ public class CommentMongoAggregation {
                 Aggregation.skip(pageable.getOffset()),
                 Aggregation.limit(pageable.getPageSize()),
                 Aggregation.project()
-                        .andExpression("_id").as("postPk")
+                        .andExpression("_id").as("postPk")   // 위에서 groupBy 의 key(_id) 는 post_pk 였기에 projection 의 _id 에 대한 alias 를 postPk 로 지정
+                                                                                // MongoDB Aggregation 에서 $group 의 결과는 항상 _id 필드에 저장
                         .andInclude("commentCount")
                         .andExclude("_id")
         );
