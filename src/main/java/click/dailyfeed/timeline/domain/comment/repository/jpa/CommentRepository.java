@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface CommentRepository extends JpaRepository<Comment, Long> {
     // 특정 게시글의 최상위 댓글들을 Slice 조회 (Scroll 용도)
@@ -30,7 +31,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     // 특정 게시글의 최상위 댓글들을 대댓글 개수와 함께 조회 (Scroll 용도)
     // 대댓글 개수를 포함한 Projection 을 반환
-    @Query("SELECT c FROM Comment c WHERE c.post.id = :postId AND c.parent IS NULL AND c.isDeleted = false ORDER BY c.createdAt ASC")
+    @Query("SELECT c FROM Comment c INNER JOIN FETCH c.post WHERE c.post.id = :postId AND c.parent IS NULL AND c.isDeleted = false ORDER BY c.createdAt ASC")
     Slice<Comment> findTopLevelCommentsByPostId(@Param("postId") Long postId, Pageable pageable);
 
     // 특정 댓글들의 대댓글 개수를 조회
@@ -38,7 +39,7 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
            "FROM Comment c " +
            "WHERE c.parent.id IN :parentIds AND c.isDeleted = false " +
            "GROUP BY c.parent.id")
-    List<ReplyCountProjection> countRepliesByParentIds(@Param("parentIds") List<Long> parentIds);
+    List<ReplyCountProjection> countRepliesByParentIds(@Param("parentIds") Set<Long> parentIds);
 
     // 대댓글 개수 조회를 위한 Projection 인터페이스
     interface ReplyCountProjection {

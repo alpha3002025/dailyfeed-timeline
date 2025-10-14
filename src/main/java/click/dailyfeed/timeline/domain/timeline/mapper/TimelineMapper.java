@@ -4,10 +4,10 @@ import click.dailyfeed.code.domain.content.comment.dto.CommentDto;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
+import click.dailyfeed.code.global.menu.MessageProperties;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.timeline.domain.comment.entity.Comment;
 import click.dailyfeed.timeline.domain.comment.projection.PostCommentCountProjection;
-import click.dailyfeed.timeline.domain.post.document.PostActivity;
 import click.dailyfeed.timeline.domain.post.entity.Post;
 import click.dailyfeed.timeline.domain.post.projection.PostLikeCountProjection;
 import org.mapstruct.Mapper;
@@ -39,25 +39,6 @@ public interface TimelineMapper {
                 .authorHandle(author != null ? author.getMemberHandle() : "unknown")
                 .authorAvatarUrl(author != null ? author.getAvatarUrl() : null)
                 .createdAt(p.getCreatedAt())
-                .title(p.getTitle())
-                .content(p.getContent())
-                .build();
-    }
-
-    default TimelineDto.TimelinePostActivity toTimelinePostActivity(PostDto.Post p, Boolean liked, PostActivity activity, MemberProfileDto.Summary author) {
-        return TimelineDto.TimelinePostActivity
-                .builder()
-                .likeCount(p.getLikeCount())
-                .commentCount(p.getCommentCount())
-                .viewCount(p.getViewCount())
-                .liked(liked)
-                .id(activity.getPostId())
-                .authorId(activity.getMemberId())
-                .authorName(author != null ? author.getDisplayName() : "Unknown")
-                .authorHandle(author != null ? author.getMemberHandle() : "unknown")
-                .authorAvatarUrl(author != null ? author.getAvatarUrl() : null)
-                .activityType(activity.getPostActivityType().getActivityName())
-                .createdAt(activity.getCreatedAt())
                 .title(p.getTitle())
                 .content(p.getContent())
                 .build();
@@ -129,31 +110,40 @@ public interface TimelineMapper {
                 .build();
     }
 
-    default CommentDto.CommentSummary toCommentSummary(Comment comment){
-        return CommentDto.CommentSummary.builder()
+    default CommentDto.ReplyComment toReplyCommentAtTopLevel(Comment comment, Long replyCount, Long commentLikeCount,  MemberProfileDto.Summary author) {
+        Post post = null;
+        if (comment != null){
+            post = comment.getPost();
+        }
+
+        return CommentDto.ReplyComment.builder()
                 .id(comment.getId())
                 .content(comment.getContent())
-                .authorId(comment.getAuthorId())
-                .postId(comment.getPost().getId())
-                .parentId(comment.getParent() != null ? comment.getParent().getId() : null)
+                .authorId(author != null ? author.getId() : null)
+                .authorName(author != null ? author.getMemberName() : MessageProperties.KO.DELETED_USER)
+                .authorAvatarUrl(author != null ? author.getAvatarUrl() : MessageProperties.KO.AVATAR_URL)
+                .postId(post != null ? post.getId() : null)
+                .parentId(null)
                 .depth(comment.getDepth())
-                .likeCount(comment.getLikeCount())
-                .childrenCount(comment.getChildren().size())
+                .likeCount(commentLikeCount)
+                .replyCount(replyCount)
                 .createdAt(comment.getCreatedAt())
+                .updatedAt(comment.getUpdatedAt())
                 .build();
     }
 
-    default CommentDto.Comment toCommentNonRecursive(Comment comment){
-        return CommentDto.Comment.builder()
+    default CommentDto.ReplyComment toReplyComment(Long parentCommentId, Comment comment, Long replyCount, Long commentLikeCount,  MemberProfileDto.Summary author) {
+        return CommentDto.ReplyComment.builder()
                 .id(comment.getId())
                 .content(comment.getContent())
-                .authorId(comment.getAuthorId())
-                .postId(comment.getPost().getId())
-                .parentId(comment.getParent() != null ? comment.getParent().getId() : null)
+                .authorId(author != null ? author.getId() : null)
+                .authorName(author != null ? author.getMemberName() : null)
+                .authorAvatarUrl(author != null ? author.getAvatarUrl() : null)
+                .postId(parentCommentId != null ? parentCommentId : null)
+                .parentId(null)
                 .depth(comment.getDepth())
-                .children(comment.getChildren().stream()
-                        .map(this::toCommentNonRecursive)
-                        .toList())
+                .likeCount(commentLikeCount)
+                .replyCount(replyCount)
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())
                 .build();

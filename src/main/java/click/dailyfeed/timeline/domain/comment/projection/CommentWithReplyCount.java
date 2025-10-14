@@ -25,11 +25,9 @@ public class CommentWithReplyCount {
     private Long postId;
     private Long parentId;
     private Integer depth;
-    private Long likeCount;
+    private Long likeCount; // 좋아요 수
+    private Long replyCount; // 대댓글 개수
     private Boolean isDeleted;
-
-    // 대댓글 개수
-    private Long replyCount;
 
     /**
      * Comment 엔티티로부터 CommentWithReplyCount 생성 (replyCount 포함)
