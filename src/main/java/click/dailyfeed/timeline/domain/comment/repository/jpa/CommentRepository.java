@@ -41,6 +41,10 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
            "GROUP BY c.parent.id")
     List<ReplyCountProjection> countRepliesByParentIds(@Param("parentIds") Set<Long> parentIds);
 
+    // 특정 댓글(parentId)의 대댓글 개수 를 조회
+    @Query("SELECT count(c) FROM Comment c WHERE c.parent.id = :parentId AND c.isDeleted = false")
+    Long countCommentByParentId(Long parentId);
+
     // 대댓글 개수 조회를 위한 Projection 인터페이스
     interface ReplyCountProjection {
         Long getParentId();

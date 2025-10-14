@@ -459,7 +459,9 @@ public class TimelinePullService {
         Comment comment = commentRepository.findByIdAndNotDeleted(commentId)
                 .orElseThrow(CommentNotFoundException::new);
 
-        Long replyCount = commentMongoAggregation.countCommentsByPostPk(commentId);
+//        Long replyCount = commentMongoAggregation.countCommentsByPostPk(commentId);
+        Long replyCount = commentRepository.countCommentByParentId(commentId);
+
         Long likeCount = commentLikeMongoAggregation.countLikesByCommentPk(commentId);
         Map<Long, MemberProfileDto.Summary> authorMap = memberFeignHelper.getMemberMap(Set.of(comment.getAuthorId()), token, httpResponse);
 
