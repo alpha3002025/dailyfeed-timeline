@@ -194,7 +194,7 @@ public class TimelineController {
     // 특정 게시글의 댓글 목록을 페이징으로 조회
     @GetMapping("/posts/{postId}/comments")
     public DailyfeedScrollResponse<DailyfeedScrollPage<CommentDto.Comment>> getCommentsByPost(
-            @AuthenticatedMember MemberDto.Member requestedMember,
+            @AuthenticatedMemberProfileSummary MemberProfileDto.Summary requestedMember,
             @RequestHeader("Authorization") String authorizationHeader,
             HttpServletResponse httpResponse,
             @PathVariable Long postId,
@@ -205,7 +205,7 @@ public class TimelineController {
                     direction = Sort.Direction.DESC
             ) Pageable pageable) {
 
-        DailyfeedScrollPage<CommentDto.Comment> result = timelineService.getCommentsByPostWithReplyCount(postId, pageable, authorizationHeader, httpResponse);
+        DailyfeedScrollPage<CommentDto.Comment> result = timelineService.getCommentsByPostWithReplyCount(requestedMember, postId, pageable, authorizationHeader, httpResponse);
         return DailyfeedScrollResponse.<DailyfeedScrollPage<CommentDto.Comment>>builder()
                 .result(ResponseSuccessCode.SUCCESS)
                 .status(HttpStatus.OK.value())
@@ -253,6 +253,7 @@ public class TimelineController {
 
     @GetMapping("/comments/{commentId}/replies")
     public DailyfeedScrollResponse<DailyfeedScrollPage<CommentDto.Comment>> getRepliesByParent(
+            @AuthenticatedMemberProfileSummary MemberProfileDto.Summary member,
             @RequestHeader("Authorization") String authorizationHeader,
             HttpServletResponse httpResponse,
             @PathVariable Long commentId,
@@ -263,7 +264,7 @@ public class TimelineController {
                     direction = Sort.Direction.DESC
             ) Pageable pageable) {
 
-        DailyfeedScrollPage<CommentDto.Comment> result = timelineService.getRepliesByParent(commentId, pageable, authorizationHeader, httpResponse);
+        DailyfeedScrollPage<CommentDto.Comment> result = timelineService.getRepliesByParent(member, commentId, pageable, authorizationHeader, httpResponse);
         return DailyfeedScrollResponse.<DailyfeedScrollPage<CommentDto.Comment>>builder()
                 .status(HttpStatus.OK.value())
                 .result(ResponseSuccessCode.SUCCESS)

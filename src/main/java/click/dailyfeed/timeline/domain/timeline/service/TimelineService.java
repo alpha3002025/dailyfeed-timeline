@@ -108,8 +108,8 @@ public class TimelineService {
         return timelinePullService.getMyComments(id, pageable, authorizationHeader, httpResponse);
     }
 
-    public DailyfeedScrollPage<CommentDto.Comment> getCommentsByPostWithReplyCount(Long postId, Pageable pageable, String token, HttpServletResponse httpResponse){
-        return timelinePullService.getCommentsByPostWithReplyCount(postId, pageable, token, httpResponse);
+    public DailyfeedScrollPage<CommentDto.Comment> getCommentsByPostWithReplyCount(MemberProfileDto.Summary requestedMember, Long postId, Pageable pageable, String token, HttpServletResponse httpResponse){
+        return timelinePullService.getCommentsByPostWithReplyCount(requestedMember, postId, pageable, token, httpResponse);
     }
 
     public DailyfeedScrollPage<CommentDto.Comment> getCommentsByUser(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
@@ -120,8 +120,8 @@ public class TimelineService {
         return timelinePullService.getCommentById(memberId, commentId,token,httpResponse);
     }
 
-    public DailyfeedScrollPage<CommentDto.Comment> getRepliesByParent(Long commentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        return timelinePullService.getRepliesByParent(commentId, pageable, token, httpResponse);
+    public DailyfeedScrollPage<CommentDto.Comment> getRepliesByParent(MemberProfileDto.Summary member, Long commentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+        return timelinePullService.getRepliesByParent(member, commentId, pageable, token, httpResponse);
     }
 
     private PushPullPredicate checkPushOrPull(Long followingCount) {

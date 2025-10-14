@@ -20,6 +20,7 @@ import click.dailyfeed.timeline.domain.comment.projection.CommentLikeCountProjec
 import click.dailyfeed.timeline.domain.comment.projection.PostCommentCountProjection;
 import click.dailyfeed.timeline.domain.comment.repository.jpa.CommentRepository;
 import click.dailyfeed.timeline.domain.comment.repository.mongo.CommentLikeMongoAggregation;
+import click.dailyfeed.timeline.domain.comment.repository.mongo.CommentLikeMongoRepository;
 import click.dailyfeed.timeline.domain.comment.repository.mongo.CommentMongoAggregation;
 import click.dailyfeed.timeline.domain.post.entity.Post;
 import click.dailyfeed.timeline.domain.post.mapper.TimelinePostMapper;
@@ -65,6 +66,7 @@ public class TimelinePullService {
     private final PageMapper pageMapper;
     private final TimelinePostMapper timelinePostMapper;
     private final TimelineMapper timelineMapper;
+    private final CommentLikeMongoRepository commentLikeMongoRepository;
 
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_GET_TIMELINE_ITEMS_DEFAULT, key="#memberId + '_' + #page + '_' + #size + '_' + #hours", unless = "#result.isEmpty()")
@@ -330,13 +332,19 @@ public class TimelinePullService {
         // 4. 통계 정보 조회
         ReplyStatistics replyStatistics = aggregateReplyStatistics(commentIds, authorIds, token, httpResponse);
 
+        Set<Long> myLikeReplyIds = commentLikeMongoRepository.findByCommentPkIn(commentIds)
+                .stream().filter(document -> document.getMemberId().equals(memberId))
+                .map(document -> document.getCommentPk())
+                .collect(Collectors.toSet());
+
         // 5. 변환
         List<CommentDto.Comment> result = comments.getContent().stream()
                 .map(comment -> {
                     Long replyCount = replyStatistics.replyCountMap.getOrDefault(comment.getId(), 0L);
                     Long commentLikeCount = replyStatistics.commentLikeMap.getOrDefault(comment.getId(), 0L);
                     MemberProfileDto.Summary summary = replyStatistics.authorMap.get(comment.getAuthorId());
-                    return timelineMapper.toReplyCommentAtTopLevel(comment, replyCount, commentLikeCount, summary);
+                    Boolean liked = myLikeReplyIds.contains(comment.getId());
+                    return timelineMapper.toReplyCommentAtTopLevel(comment, liked, replyCount, commentLikeCount, summary);
                 })
                 .collect(Collectors.toList());
 
@@ -373,7 +381,7 @@ public class TimelinePullService {
      * 특정 게시글의 최상위 댓글 목록을 대댓글 개수와 함께 조회
      * 각 댓글에 대댓글 개수(replyCount)가 포함된 Projection을 반환
      */
-    public DailyfeedScrollPage<CommentDto.Comment> getCommentsByPostWithReplyCount(Long postId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<CommentDto.Comment> getCommentsByPostWithReplyCount(MemberProfileDto.Summary requestedMember, Long postId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         // 1. 최상위 댓글 조회
         Slice<Comment> comments = commentRepository.findTopLevelCommentsByPostId(postId, pageable);
         if (comments.isEmpty()) {
@@ -387,13 +395,19 @@ public class TimelinePullService {
         // 4. 통계 정보 조회
         ReplyStatistics replyStatistics = aggregateReplyStatistics(commentIds, authorIds, token, httpResponse);
 
+        Set<Long> myLikeReplyIds = commentLikeMongoRepository.findByCommentPkIn(commentIds)
+                .stream().filter(document -> requestedMember.getMemberId().equals(document.getMemberId()))
+                .map(document -> document.getCommentPk())
+                .collect(Collectors.toSet());
+
         // 5. 변환
         List<CommentDto.Comment> result = comments.getContent().stream()
                 .map(comment -> {
                     Long replyCount = replyStatistics.replyCountMap.getOrDefault(comment.getId(), 0L);
                     Long commentLikeCount = replyStatistics.commentLikeMap.getOrDefault(comment.getId(), 0L);
                     MemberProfileDto.Summary summary = replyStatistics.authorMap.get(comment.getAuthorId());
-                    return timelineMapper.toReplyCommentAtTopLevel(comment, replyCount, commentLikeCount, summary);
+                    Boolean liked = myLikeReplyIds.contains(comment.getId());
+                    return timelineMapper.toReplyCommentAtTopLevel(comment, liked, replyCount, commentLikeCount, summary);
                 })
                 .collect(Collectors.toList());
 
@@ -417,13 +431,19 @@ public class TimelinePullService {
         // 4. 통계 정보 조회
         ReplyStatistics replyStatistics = aggregateReplyStatistics(commentIds, authorIds, token, httpResponse);
 
+        Set<Long> myLikeReplyIds = commentLikeMongoRepository.findByCommentPkIn(commentIds)
+                .stream().filter(document -> memberId.equals(document.getMemberId()))
+                .map(document -> document.getCommentPk())
+                .collect(Collectors.toSet());
+
         // 5. 변환
         List<CommentDto.Comment> result = comments.getContent().stream()
                 .map(comment -> {
                     Long replyCount = replyStatistics.replyCountMap.getOrDefault(comment.getId(), 0L);
                     Long commentLikeCount = replyStatistics.commentLikeMap.getOrDefault(comment.getId(), 0L);
                     MemberProfileDto.Summary summary = replyStatistics.authorMap.get(comment.getAuthorId());
-                    return timelineMapper.toReplyCommentAtTopLevel(comment, replyCount, commentLikeCount, summary);
+                    Boolean liked = myLikeReplyIds.contains(comment.getId());
+                    return timelineMapper.toReplyCommentAtTopLevel(comment, liked, replyCount, commentLikeCount, summary);
                 })
                 .collect(Collectors.toList());
 
@@ -443,14 +463,19 @@ public class TimelinePullService {
         Long likeCount = commentLikeMongoAggregation.countLikesByCommentPk(commentId);
         Map<Long, MemberProfileDto.Summary> authorMap = memberFeignHelper.getMemberMap(Set.of(comment.getAuthorId()), token, httpResponse);
 
+        Set<Long> myLikeReplyIds = commentLikeMongoRepository.findByCommentPkIn(Set.of(commentId))
+                .stream().filter(document -> memberId.equals(document.getMemberId()))
+                .map(document -> document.getCommentPk())
+                .collect(Collectors.toSet());
+
         // 멤버 활동 기록
         memberActivityKafkaPublisher.publishCommentReadEvent(memberId, comment.getPost().getId(), commentId);
-        return timelineMapper.toReplyCommentAtTopLevel(comment, replyCount, likeCount, authorMap.get(comment.getAuthorId()));
+        return timelineMapper.toReplyCommentAtTopLevel(comment, myLikeReplyIds.contains(memberId) ,replyCount, likeCount, authorMap.get(comment.getAuthorId()));
     }
 
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_PARENT_ID, key = "'parentId_'+#parentId+'_page_'+#page+'_size_'+#size")
-    public DailyfeedScrollPage<CommentDto.Comment> getRepliesByParent(Long parentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<CommentDto.Comment> getRepliesByParent(MemberProfileDto.Summary member, Long parentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         Comment parentComment = commentRepository.findByIdAndNotDeleted(parentId)
                 .orElseThrow(ParentCommentNotFoundException::new);
 
@@ -467,13 +492,19 @@ public class TimelinePullService {
         // 4. 통계 정보 조회
         ReplyStatistics replyStatistics = aggregateReplyStatistics(commentIds, authorIds, token, httpResponse);
 
+        Set<Long> myLikeReplyIds = commentLikeMongoRepository.findByCommentPkIn(commentIds)
+                .stream().filter(document -> member.getMemberId().equals(document.getMemberId()))
+                .map(document -> document.getCommentPk())
+                .collect(Collectors.toSet());
+
         // 5. 변환
         List<CommentDto.Comment> result = replies.getContent().stream()
                 .map(comment -> {
                     Long replyCount = replyStatistics.replyCountMap.getOrDefault(comment.getId(), 0L);
                     Long commentLikeCount = replyStatistics.commentLikeMap.getOrDefault(comment.getId(), 0L);
                     MemberProfileDto.Summary summary = replyStatistics.authorMap.get(comment.getAuthorId());
-                    return timelineMapper.toReplyComment(parentId, comment, replyCount, commentLikeCount, summary);
+                    Boolean liked = myLikeReplyIds.contains(comment.getId());
+                    return timelineMapper.toReplyComment(parentId, liked, comment, replyCount, commentLikeCount, summary);
                 })
                 .collect(Collectors.toList());
 

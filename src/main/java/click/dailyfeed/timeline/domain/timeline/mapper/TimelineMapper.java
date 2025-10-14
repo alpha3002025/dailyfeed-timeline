@@ -110,7 +110,7 @@ public interface TimelineMapper {
                 .build();
     }
 
-    default CommentDto.Comment toReplyCommentAtTopLevel(Comment comment, Long replyCount, Long commentLikeCount, MemberProfileDto.Summary author) {
+    default CommentDto.Comment toReplyCommentAtTopLevel(Comment comment, Boolean liked, Long replyCount, Long commentLikeCount, MemberProfileDto.Summary author) {
         Post post = null;
         if (comment != null){
             post = comment.getPost();
@@ -118,6 +118,7 @@ public interface TimelineMapper {
 
         return CommentDto.Comment.builder()
                 .id(comment.getId())
+                .liked(liked)
                 .content(comment.getContent())
                 .authorId(author != null ? author.getId() : null)
                 .authorName(author != null ? author.getMemberName() : MessageProperties.KO.DELETED_USER)
@@ -132,9 +133,10 @@ public interface TimelineMapper {
                 .build();
     }
 
-    default CommentDto.Comment toReplyComment(Long parentCommentId, Comment comment, Long replyCount, Long commentLikeCount, MemberProfileDto.Summary author) {
+    default CommentDto.Comment toReplyComment(Long parentCommentId, Boolean liked, Comment comment, Long replyCount, Long commentLikeCount, MemberProfileDto.Summary author) {
         return CommentDto.Comment.builder()
                 .id(comment.getId())
+                .liked(liked)
                 .content(comment.getContent())
                 .authorId(author != null ? author.getId() : null)
                 .authorName(author != null ? author.getMemberName() : null)
