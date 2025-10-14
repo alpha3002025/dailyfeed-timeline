@@ -140,7 +140,7 @@ public interface TimelineMapper {
                 .authorName(author != null ? author.getMemberName() : null)
                 .authorAvatarUrl(author != null ? author.getAvatarUrl() : null)
                 .postId(parentCommentId != null ? parentCommentId : null)
-                .parentId(null)
+                .parentId(parentCommentId)
                 .depth(comment.getDepth())
                 .likeCount(commentLikeCount)
                 .replyCount(replyCount)
