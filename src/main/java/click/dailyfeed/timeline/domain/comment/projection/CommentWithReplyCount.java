@@ -1,7 +1,6 @@
 package click.dailyfeed.timeline.domain.comment.projection;
 
 import click.dailyfeed.timeline.domain.comment.entity.Comment;
-import click.dailyfeed.timeline.domain.post.entity.Post;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
