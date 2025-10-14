@@ -10,7 +10,6 @@ import click.dailyfeed.code.global.web.code.ResponseSuccessCode;
 import click.dailyfeed.code.global.web.page.DailyfeedPage;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.code.global.web.response.DailyfeedServerResponse;
-import click.dailyfeed.timeline.domain.comment.projection.CommentWithReplyCount;
 import click.dailyfeed.timeline.domain.timeline.mapper.TimelineMapper;
 import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostActivityRedisService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -105,23 +104,23 @@ public class TimelineService {
     }
 
     /// comments
-    public DailyfeedScrollPage<CommentDto.ReplyComment> getMyComments(Long id, Pageable pageable, String authorizationHeader, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<CommentDto.Comment> getMyComments(Long id, Pageable pageable, String authorizationHeader, HttpServletResponse httpResponse) {
         return timelinePullService.getMyComments(id, pageable, authorizationHeader, httpResponse);
     }
 
-    public DailyfeedScrollPage<CommentDto.ReplyComment> getCommentsByPostWithReplyCount(Long postId, Pageable pageable, String token, HttpServletResponse httpResponse){
+    public DailyfeedScrollPage<CommentDto.Comment> getCommentsByPostWithReplyCount(Long postId, Pageable pageable, String token, HttpServletResponse httpResponse){
         return timelinePullService.getCommentsByPostWithReplyCount(postId, pageable, token, httpResponse);
     }
 
-    public DailyfeedScrollPage<CommentDto.ReplyComment> getCommentsByUser(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<CommentDto.Comment> getCommentsByUser(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         return timelinePullService.getCommentsByUser(memberId, pageable, token, httpResponse);
     }
 
-    public CommentDto.ReplyComment getCommentById(Long memberId, Long commentId, String token, HttpServletResponse httpResponse) {
+    public CommentDto.Comment getCommentById(Long memberId, Long commentId, String token, HttpServletResponse httpResponse) {
         return timelinePullService.getCommentById(memberId, commentId,token,httpResponse);
     }
 
-    public DailyfeedScrollPage<CommentDto.ReplyComment> getRepliesByParent(Long commentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<CommentDto.Comment> getRepliesByParent(Long commentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         return timelinePullService.getRepliesByParent(commentId, pageable, token, httpResponse);
     }
 

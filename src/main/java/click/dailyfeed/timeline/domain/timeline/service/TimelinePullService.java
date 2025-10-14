@@ -316,7 +316,7 @@ public class TimelinePullService {
 
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_MEMBER_ID, key = "'memberId_'+#memberId+'_page_'+#page+'_size_'+#size")
-    public DailyfeedScrollPage<CommentDto.ReplyComment> getMyComments(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<CommentDto.Comment> getMyComments(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         // 1. 댓글 목록 조회
         Slice<Comment> comments = commentRepository.findByAuthorIdAndNotDeleted(memberId, pageable);
         if (comments.isEmpty()) {
@@ -324,14 +324,14 @@ public class TimelinePullService {
         }
 
         // 2. 댓글 ID 목록 추출
-        Set<Long> commentIds = comments.getContent().stream().map(Comment::getId).collect(Collectors.toSet());
+        Set<Long> commentIds = comments.getContent().stream().map(click.dailyfeed.timeline.domain.comment.entity.Comment::getId).collect(Collectors.toSet());
         // 3. 작성자 정보 조회
         Set<Long> authorIds = comments.getContent().stream().map(c -> c.getAuthorId()).collect(Collectors.toSet());
         // 4. 통계 정보 조회
         ReplyStatistics replyStatistics = aggregateReplyStatistics(commentIds, authorIds, token, httpResponse);
 
         // 5. 변환
-        List<CommentDto.ReplyComment> result = comments.getContent().stream()
+        List<CommentDto.Comment> result = comments.getContent().stream()
                 .map(comment -> {
                     Long replyCount = replyStatistics.replyCountMap.getOrDefault(comment.getId(), 0L);
                     Long commentLikeCount = replyStatistics.commentLikeMap.getOrDefault(comment.getId(), 0L);
@@ -373,7 +373,7 @@ public class TimelinePullService {
      * 특정 게시글의 최상위 댓글 목록을 대댓글 개수와 함께 조회
      * 각 댓글에 대댓글 개수(replyCount)가 포함된 Projection을 반환
      */
-    public DailyfeedScrollPage<CommentDto.ReplyComment> getCommentsByPostWithReplyCount(Long postId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<CommentDto.Comment> getCommentsByPostWithReplyCount(Long postId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         // 1. 최상위 댓글 조회
         Slice<Comment> comments = commentRepository.findTopLevelCommentsByPostId(postId, pageable);
         if (comments.isEmpty()) {
@@ -381,14 +381,14 @@ public class TimelinePullService {
         }
 
         // 2. 댓글 ID 목록 추출
-        Set<Long> commentIds = comments.getContent().stream().map(Comment::getId).collect(Collectors.toSet());
+        Set<Long> commentIds = comments.getContent().stream().map(click.dailyfeed.timeline.domain.comment.entity.Comment::getId).collect(Collectors.toSet());
         // 3. 작성자 정보 조회
         Set<Long> authorIds = comments.getContent().stream().map(c -> c.getAuthorId()).collect(Collectors.toSet());
         // 4. 통계 정보 조회
         ReplyStatistics replyStatistics = aggregateReplyStatistics(commentIds, authorIds, token, httpResponse);
 
         // 5. 변환
-        List<CommentDto.ReplyComment> result = comments.getContent().stream()
+        List<CommentDto.Comment> result = comments.getContent().stream()
                 .map(comment -> {
                     Long replyCount = replyStatistics.replyCountMap.getOrDefault(comment.getId(), 0L);
                     Long commentLikeCount = replyStatistics.commentLikeMap.getOrDefault(comment.getId(), 0L);
@@ -403,7 +403,7 @@ public class TimelinePullService {
 
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_MEMBER_ID, key = "'memberId_'+#memberId+'_page_'+#pageable.getPageNumber() +'_size_'+#pageable.getPageSize()")
-    public DailyfeedScrollPage<CommentDto.ReplyComment> getCommentsByUser(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<CommentDto.Comment> getCommentsByUser(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         // 1. 댓글 목록 조회
         Slice<Comment> comments = commentRepository.findByAuthorIdAndNotDeleted(memberId, pageable);
         if (comments.isEmpty()) {
@@ -411,14 +411,14 @@ public class TimelinePullService {
         }
 
         // 2. 댓글 ID 목록 추출
-        Set<Long> commentIds = comments.getContent().stream().map(Comment::getId).collect(Collectors.toSet());
+        Set<Long> commentIds = comments.getContent().stream().map(click.dailyfeed.timeline.domain.comment.entity.Comment::getId).collect(Collectors.toSet());
         // 3. 작성자 정보 조회
         Set<Long> authorIds = comments.getContent().stream().map(c -> c.getAuthorId()).collect(Collectors.toSet());
         // 4. 통계 정보 조회
         ReplyStatistics replyStatistics = aggregateReplyStatistics(commentIds, authorIds, token, httpResponse);
 
         // 5. 변환
-        List<CommentDto.ReplyComment> result = comments.getContent().stream()
+        List<CommentDto.Comment> result = comments.getContent().stream()
                 .map(comment -> {
                     Long replyCount = replyStatistics.replyCountMap.getOrDefault(comment.getId(), 0L);
                     Long commentLikeCount = replyStatistics.commentLikeMap.getOrDefault(comment.getId(), 0L);
@@ -434,7 +434,7 @@ public class TimelinePullService {
     // 댓글 상세 조회
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENT_BY_ID, key = "#commentId")
-    public CommentDto.ReplyComment getCommentById(Long memberId, Long commentId, String token, HttpServletResponse httpResponse) {
+    public CommentDto.Comment getCommentById(Long memberId, Long commentId, String token, HttpServletResponse httpResponse) {
         // 댓글 정보 조회
         Comment comment = commentRepository.findByIdAndNotDeleted(commentId)
                 .orElseThrow(CommentNotFoundException::new);
@@ -450,7 +450,7 @@ public class TimelinePullService {
 
     @Transactional(readOnly = true)
     @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_PARENT_ID, key = "'parentId_'+#parentId+'_page_'+#page+'_size_'+#size")
-    public DailyfeedScrollPage<CommentDto.ReplyComment> getRepliesByParent(Long parentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public DailyfeedScrollPage<CommentDto.Comment> getRepliesByParent(Long parentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         Comment parentComment = commentRepository.findByIdAndNotDeleted(parentId)
                 .orElseThrow(ParentCommentNotFoundException::new);
 
@@ -461,14 +461,14 @@ public class TimelinePullService {
         }
 
         // 2. 댓글 ID 목록 추출
-        Set<Long> commentIds = replies.getContent().stream().map(Comment::getId).collect(Collectors.toSet());
+        Set<Long> commentIds = replies.getContent().stream().map(click.dailyfeed.timeline.domain.comment.entity.Comment::getId).collect(Collectors.toSet());
         // 3. 작성자 정보 조회
         Set<Long> authorIds = replies.getContent().stream().map(c -> c.getAuthorId()).collect(Collectors.toSet());
         // 4. 통계 정보 조회
         ReplyStatistics replyStatistics = aggregateReplyStatistics(commentIds, authorIds, token, httpResponse);
 
         // 5. 변환
-        List<CommentDto.ReplyComment> result = replies.getContent().stream()
+        List<CommentDto.Comment> result = replies.getContent().stream()
                 .map(comment -> {
                     Long replyCount = replyStatistics.replyCountMap.getOrDefault(comment.getId(), 0L);
                     Long commentLikeCount = replyStatistics.commentLikeMap.getOrDefault(comment.getId(), 0L);

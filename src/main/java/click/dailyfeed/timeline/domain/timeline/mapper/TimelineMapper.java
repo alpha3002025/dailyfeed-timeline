@@ -110,18 +110,18 @@ public interface TimelineMapper {
                 .build();
     }
 
-    default CommentDto.ReplyComment toReplyCommentAtTopLevel(Comment comment, Long replyCount, Long commentLikeCount,  MemberProfileDto.Summary author) {
+    default CommentDto.Comment toReplyCommentAtTopLevel(Comment comment, Long replyCount, Long commentLikeCount, MemberProfileDto.Summary author) {
         Post post = null;
         if (comment != null){
             post = comment.getPost();
         }
 
-        return CommentDto.ReplyComment.builder()
+        return CommentDto.Comment.builder()
                 .id(comment.getId())
                 .content(comment.getContent())
                 .authorId(author != null ? author.getId() : null)
                 .authorName(author != null ? author.getMemberName() : MessageProperties.KO.DELETED_USER)
-                .authorAvatarUrl(author != null ? author.getAvatarUrl() : MessageProperties.KO.AVATAR_URL)
+                .authorAvatarUrl(author != null ? author.getAvatarUrl() : MessageProperties.KO.NO_AVATAR_URL)
                 .postId(post != null ? post.getId() : null)
                 .parentId(null)
                 .depth(comment.getDepth())
@@ -132,8 +132,8 @@ public interface TimelineMapper {
                 .build();
     }
 
-    default CommentDto.ReplyComment toReplyComment(Long parentCommentId, Comment comment, Long replyCount, Long commentLikeCount,  MemberProfileDto.Summary author) {
-        return CommentDto.ReplyComment.builder()
+    default CommentDto.Comment toReplyComment(Long parentCommentId, Comment comment, Long replyCount, Long commentLikeCount, MemberProfileDto.Summary author) {
+        return CommentDto.Comment.builder()
                 .id(comment.getId())
                 .content(comment.getContent())
                 .authorId(author != null ? author.getId() : null)
