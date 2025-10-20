@@ -1,6 +1,9 @@
 spring:
   application:
     name: dailyfeed-timeline
+  config:
+    import:
+      - classpath:feign-config-local.yaml
   ## database connection
   datasource:
     driver-class-name: com.mysql.jdbc.Driver

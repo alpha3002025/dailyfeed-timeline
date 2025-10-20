@@ -3,7 +3,7 @@ spring:
     name: dailyfeed-timeline
   config:
     import:
-      - classpath:feign-config-dev.yaml
+      - classpath:feign-config-local-was.yaml
   ## database connection
   datasource:
     driver-class-name: com.mysql.jdbc.Driver
@@ -16,6 +16,7 @@ spring:
       username: ${MYSQL_USERNAME:dailyfeed}
       password: ${MYSQL_PASSWORD:hitEnter###}
       schema: ${MYSQL_SCHEMA:dailyfeed}
+
   ## jpa
   jpa:
     hibernate:
@@ -26,31 +27,28 @@ spring:
   devtools:
     restart:
       enabled: false
-  ## paging 관련
   data:
     web:
+      ## paging 관련
       pageable:
         max-page-size: 100
         default-page-size: 20
     redis:
       port: ${REDIS_PORT:26379}
       host: ${REDIS_HOST:localhost}
+      password: ${REDIS_PASSWORD:}
     mongodb:
-      protocol: mongodb+srv # mongodb+srv or mongodb (atlas 에서만 mongodb+srv)
-      uri: ${MONGODB_CONNECTION_URI:mongodb+srv://dailyfeed-search:hitEnter###@alpha300.sz30zco.mongodb.net/dailyfeed?retryWrites=true&w=majority&appName=alpha300&connectTimeoutMS=30000&socketTimeoutMS=30000&serverSelectionTimeoutMS=30000}
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
+      protocol: mongodb # mongodb+srv or mongodb (atlas 에서만 mongodb+srv)
+      uri: ${MONGODB_CONNECTION_URI:mongodb://localhost:27017/dailyfeed?directConnection=true}
   ## kafka
   kafka:
-    bootstrap-servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:9092}
+    bootstrap-servers: ${KAFKA_HOST:localhost}:${KAFKA_PORT:29092}
     listener:
-      ack-mode: manual_immediate # 수동 커밋 (TODO 확인 필요)
-      concurrency: 3 # 컨슈머 스레드 수 (TODO 확인 필요)
+      ack-mode: manual_immediate # 수동 커밋
+      concurrency: 3 # 컨슈머 스레드 수
       poll-timeout: 3000
       missing-topics-fatal: false  # 토픽이 없어도 시작 가능
     consumer:
-      group-id: ${spring.application.name}-group
       auto-offset-reset: latest
       enable-auto-commit: false # At Least Once 를 위한 수동 커밋
       max-poll-records: 500
@@ -80,6 +78,7 @@ spring:
         spring.json.trusted.packages: "*"
         retry.backoff.ms: 100
         request.timeout.ms: 30000
+
 springdoc:
   packages-to-scan: click.dailyfeed.timeline.domain
   default-consumes-media-type: application/json;charset=UTF-8
@@ -96,18 +95,22 @@ springdoc:
     tags-sorter: alpha          # 알파벳 순 Tag 정렬, method: HTTP Method 순 정렬
     operations-sorter: alpha    # 알파벳 순 Tag 정렬, method: HTTP Method 순 정렬
 
+## logging
 logging:
   level:
     click.dailyfeed.timeline.client: DEBUG
+    click.dailyfeed.timeline.domain.post.kafka: DEBUG
+    click.dailyfeed.timeline.domain.comment.kafka: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.kafka: INFO
+    org.apache.kafka: INFO
 
 dailyfeed:
   services:
     member:
       feign:
-        url: ${MEMBER_SERVICE_URL:http://localhost:8081}
+        url: ${MEMBER_SERVICE_URL:http://localhost:8084}
         timeout:
           connect: 5000
           read: 10000
@@ -120,12 +123,29 @@ dailyfeed:
       push-pull:
         limit: 1000
     content:
+      feign:
+        url: ${CONTENT_SERVICE_URL:http://localhost:8081}
+        timeout:
+          connect: 5000
+          read: 10000
       comment:
         max-depth: 2    # 댓글 최대 깊이
         page-size: 20   # 기본 페이지 크기
     search:
       feign:
         url: ${SEARCH_SERVICE_URL:http://localhost:8083}
+        timeout:
+          connect: 5000
+          read: 10000
+    image:
+      feign:
+        url: ${IMAGE_SERVICE_URL:http://localhost:8085}
+        timeout:
+          connect: 5000
+          read: 10000
+    activity:
+      feign:
+        url: ${ACTIVITY_SERVICE_URL:http://localhost:8086}
         timeout:
           connect: 5000
           read: 10000
@@ -149,4 +169,10 @@ infrastructure:
         retention-ms: 604800000 # 7일
         operation-timeout-seconds: 30
 server:
-  port: 8082
+  port: ${SERVER_PORT:8082}
+#  servlet:
+#    context-path: /
+#  compression:
+#    enabled: true
+#    mime-types: application/json,text/plain
+#    min-response-size: 1024
