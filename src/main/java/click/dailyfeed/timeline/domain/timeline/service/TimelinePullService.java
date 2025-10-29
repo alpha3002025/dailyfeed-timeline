@@ -103,7 +103,7 @@ public class TimelinePullService {
         }
 
         if (member.getFollowingsCount() < 10000){ // following 이 2000 명 이하면 일단은 그래도 캐시를 적용했으니 그냥 pull
-            return listMyFollowingActivities(member.getId(), pageable.getPageNumber(), pageable.getPageSize(), 24, token, httpServletResponse);
+            return listMyFollowingActivities(member.getId(), pageable, token, httpServletResponse);
         }
         else{ // 10000 명 이상이면 super heavy 로 판정 (팔로잉을 10000명 이상 한다는 것은 비정상 유저일수도 있고, 인플루언서의 인맥이 넓을 경우 등 일수도 있지만, 호날두는 605명... ㅋㅋ 😆😆)
             return listSuperHeavyFollowingActivities(member, pageable, token, httpServletResponse);
