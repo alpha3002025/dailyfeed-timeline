@@ -4,14 +4,15 @@ import click.dailyfeed.code.domain.content.comment.dto.CommentDto;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
-import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.domain.timeline.timeline.predicate.PushPullPredicate;
+import click.dailyfeed.code.global.cache.RedisKeyPrefix;
 import click.dailyfeed.code.global.web.code.ResponseSuccessCode;
 import click.dailyfeed.code.global.web.page.DailyfeedPage;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
-import click.dailyfeed.code.global.web.response.DailyfeedServerResponse;
+import click.dailyfeed.code.global.web.response.DailyfeedScrollResponse;
+import click.dailyfeed.pagination.slice.HasMoreComponent;
 import click.dailyfeed.timeline.domain.timeline.mapper.TimelineMapper;
-import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostActivityRedisService;
+import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostsApiRedisService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,61 +27,108 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 @Service
 public class TimelineService {
-    private final TimelinePostActivityRedisService timelinePostActivityRedisService;
+    private final TimelinePostsApiRedisService timelinePostsApiRedisService;
     private final TimelinePullService timelinePullService;
     private final TimelineMapper timelineMapper;
+    private final HasMoreComponent hasMoreComponent;
 
     @Value("${dailyfeed.services.timeline.push-pull.limit}")
     private Integer pushPullLimit;
 
-    public DailyfeedServerResponse<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>> getMyFollowingMembersTimeline(MemberProfileDto.MemberProfile member, Pageable pageable, String token, HttpServletResponse httpServletResponse) {
+    public DailyfeedScrollResponse<DailyfeedScrollPage<PostDto.Post>> getMyFollowingMembersTimeline(MemberProfileDto.MemberProfile member, int page, int size, String token, HttpServletResponse httpServletResponse) {
         if(PushPullPredicate.PUSH.equals(checkPushOrPull(member.getFollowingsCount()))){
             // (1)
-            // redis 에서 조회
-            List<TimelineDto.TimelinePostActivity> topNResult = timelinePostActivityRedisService.topN(member.getId(), pageable);
+            // redis 에서 조회 (size + 1 개를 조회하여 hasNext 판단)
+            final String redisKey = RedisKeyPrefix.TIMELINE_API_POSTS_FOLLOWINGS_RECENT_POSTS.getKeyPrefix() + member.getMemberId();
+            List<PostDto.Post> redisResult = timelinePostsApiRedisService.topN(redisKey, page, size + 1);
+
+            // hasNext 판단
+            Boolean hasMore = hasMoreComponent.hasMore(redisResult, size);
+            List<PostDto.Post> content = hasMoreComponent.toList(redisResult, size);
 
             // (2)
             // 부족할 경우 pull 데이터로 보완
-            if(topNResult.size() < pageable.getPageSize()){
-                List<TimelineDto.TimelinePostActivity> pullActivities = timelinePullService.listMyFollowingActivities(member.getId(), pageable.getPageNumber(), pageable.getPageSize(), 24, token, httpServletResponse);
-                List<TimelineDto.TimelinePostActivity> timelinePostActivities = mergeFeedsWithoutDuplicate(topNResult, pullActivities, pageable.getPageSize());
-                DailyfeedScrollPage<TimelineDto.TimelinePostActivity> slice = timelineMapper.fromTimelineList(timelinePostActivities, pageable);
-                return DailyfeedServerResponse.<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>>builder()
+            if(content.size() < size){
+                List<PostDto.Post> dbData = timelinePullService.listMyFollowingActivities(member.getId(), page, size + 1, token, httpServletResponse);
+                List<PostDto.Post> merged = mergeFeedsWithoutDuplicate(content, dbData, size + 1);
+
+                Boolean mergedHasMore = hasMoreComponent.hasMore(merged, size);
+                List<PostDto.Post> mergedContent = hasMoreComponent.toList(merged, size);
+
+                DailyfeedScrollPage<PostDto.Post> slice = timelineMapper.toScrollPage(mergedContent, page, size, mergedHasMore);
+                return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
                         .data(slice)
                         .result(ResponseSuccessCode.SUCCESS)
                         .status(HttpStatus.OK.value())
                         .build();
             }
 
-            return DailyfeedServerResponse.<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>>builder()
-                    .data(timelineMapper.fromTimelineList(topNResult, pageable))
+            return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
+                    .data(timelineMapper.toScrollPage(content, page, size, hasMore))
                     .result(ResponseSuccessCode.SUCCESS)
                     .status(HttpStatus.OK.value())
                     .build();
         }
         else{ // 실제 데이터를 그대로 pull 해온다.
-            List<TimelineDto.TimelinePostActivity> pullActivities = timelinePullService.listHeavyMyFollowingActivities(member, pageable, token, httpServletResponse);
-            return DailyfeedServerResponse.<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>>builder()
-                    .data(timelineMapper.fromTimelineList(pullActivities, pageable))
+            List<PostDto.Post> pullActivities = timelinePullService.listHeavyMyFollowingActivities(member, page, size + 1, token, httpServletResponse);
+            Boolean hasMore = hasMoreComponent.hasMore(pullActivities, size);
+            List<PostDto.Post> content = hasMoreComponent.toList(pullActivities, size);
+
+            return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
+                    .data(timelineMapper.toScrollPage(content, page, size, hasMore))
                     .result(ResponseSuccessCode.SUCCESS)
                     .status(HttpStatus.OK.value())
                     .build();
         }
     }
 
-    public DailyfeedScrollPage<PostDto.Post> getPostsOrderByCommentCount(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse){
-        DailyfeedScrollPage<PostDto.Post> result = timelinePullService.getPostsOrderByCommentCount(memberId, pageable, token, httpResponse);
+    public DailyfeedScrollResponse<DailyfeedScrollPage<PostDto.Post>> getPostsOrderByCommentCount(Long memberId, int page, int size, String token, HttpServletResponse httpResponse){
+        // (1)
+        // redis 에서 조회 (size + 1 개를 조회하여 hasNext 판단)
+        final String redisKey = RedisKeyPrefix.TIMELINE_API_POSTS_MOST_COMMENTED.getKeyPrefix() + memberId;
+        List<PostDto.Post> redisResult = timelinePostsApiRedisService.topN(redisKey, page, size + 1);
 
-        /// 댓글이 하나도 없을 경우 (기본옵션은 댓글이 없을 경우 표시x)
-//        if(result.getContent().isEmpty()){ // 댓글이 달린 글이 없을 경우
-//            return timelinePullService.getPopularPosts(pageable, token, httpResponse);
-//        }
+        // hasNext 판단
+        Boolean hasMore = hasMoreComponent.hasMore(redisResult, size);
+        List<PostDto.Post> content = hasMoreComponent.toList(redisResult, size);
 
-        return result;
+        // (2)
+        // 부족할 경우 pull 데이터로 보완
+        if(content.size() < size){
+            List<PostDto.Post> dbData = timelinePullService.getPostsOrderByCommentCount(memberId, page, size + 1, token, httpResponse);
+            List<PostDto.Post> merged = mergeFeedsWithoutDuplicate(content, dbData, size + 1);
+
+            Boolean mergedHasMore = hasMoreComponent.hasMore(merged, size);
+            List<PostDto.Post> mergedContent = hasMoreComponent.toList(merged, size);
+
+            DailyfeedScrollPage<PostDto.Post> slice = timelineMapper.toScrollPage(mergedContent, page, size, mergedHasMore);
+            return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
+                    .data(slice)
+                    .result(ResponseSuccessCode.SUCCESS)
+                    .status(HttpStatus.OK.value())
+                    .build();
+        }
+
+        return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
+                .data(timelineMapper.toScrollPage(content, page, size, hasMore))
+                .result(ResponseSuccessCode.SUCCESS)
+                .status(HttpStatus.OK.value())
+                .build();
     }
 
-    public DailyfeedScrollPage<PostDto.Post> getMyPosts(MemberDto.Member member, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        return timelinePullService.getMyPosts(member, pageable, token, httpResponse);
+    public DailyfeedScrollResponse<DailyfeedScrollPage<PostDto.Post>> getMyPosts(MemberDto.Member member, int page, int size, String token, HttpServletResponse httpResponse) {
+        // size + 1개 조회하여 hasNext 판단
+        List<PostDto.Post> result = timelinePullService.getMyPosts(member, page, size + 1, token, httpResponse);
+
+        // hasNext 판단
+        Boolean hasMore = hasMoreComponent.hasMore(result, size);
+        List<PostDto.Post> content = hasMoreComponent.toList(result, size);
+
+        return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
+                .data(timelineMapper.toScrollPage(content, page, size, hasMore))
+                .result(ResponseSuccessCode.SUCCESS)
+                .status(HttpStatus.OK.value())
+                .build();
     }
 
     public PostDto.Post getPostById(MemberDto.Member member, Long postId, String token, HttpServletResponse httpResponse) {
@@ -91,12 +139,53 @@ public class TimelineService {
         return timelinePullService.getPostsByAuthor(authorId, pageable, token, httpResponse);
     }
 
-    public DailyfeedScrollPage<PostDto.Post> getPopularPosts(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        return timelinePullService.getPopularPosts(requestedMemberId, pageable, token, httpResponse);
+    public DailyfeedScrollResponse<DailyfeedScrollPage<PostDto.Post>> getPopularPosts(Long requestedMemberId, int page, int size, String token, HttpServletResponse httpResponse) {
+        // (1)
+        // redis 에서 조회 (size + 1 개를 조회하여 hasNext 판단)
+        final String redisKey = RedisKeyPrefix.TIMELINE_API_POSTS_POPULAR_POSTS.getKeyPrefix() + requestedMemberId;
+        List<PostDto.Post> redisResult = timelinePostsApiRedisService.topN(redisKey, page, size + 1);
+
+        // hasNext 판단
+        Boolean hasMore = hasMoreComponent.hasMore(redisResult, size);
+        List<PostDto.Post> content = hasMoreComponent.toList(redisResult, size);
+
+        // (2)
+        // 부족할 경우 pull 데이터로 보완
+        if(content.size() < size){
+            List<PostDto.Post> dbData = timelinePullService.getPopularPosts(requestedMemberId, page, size + 1, token, httpResponse);
+            List<PostDto.Post> merged = mergeFeedsWithoutDuplicate(content, dbData, size + 1);
+
+            Boolean mergedHasMore = hasMoreComponent.hasMore(merged, size);
+            List<PostDto.Post> mergedContent = hasMoreComponent.toList(merged, size);
+
+            DailyfeedScrollPage<PostDto.Post> slice = timelineMapper.toScrollPage(mergedContent, page, size, mergedHasMore);
+            return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
+                    .data(slice)
+                    .result(ResponseSuccessCode.SUCCESS)
+                    .status(HttpStatus.OK.value())
+                    .build();
+        }
+
+        return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
+                .data(timelineMapper.toScrollPage(content, page, size, hasMore))
+                .result(ResponseSuccessCode.SUCCESS)
+                .status(HttpStatus.OK.value())
+                .build();
     }
 
-    public DailyfeedScrollPage<PostDto.Post> getPostsByRecentActivities(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        return timelinePullService.getPostsByRecentActivities(requestedMemberId, pageable, token, httpResponse);
+    public DailyfeedScrollResponse<DailyfeedScrollPage<PostDto.Post>> getPostsByRecentActivities(Long requestedMemberId, int page, int size, String token, HttpServletResponse httpResponse) {
+        // size + 1개 조회하여 hasNext 판단
+        List<PostDto.Post> result = timelinePullService.getPostsByRecentActivities(requestedMemberId, page, size + 1, token, httpResponse);
+
+        // hasNext 판단
+        Boolean hasMore = hasMoreComponent.hasMore(result, size);
+        List<PostDto.Post> content = hasMoreComponent.toList(result, size);
+
+        return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
+                .data(timelineMapper.toScrollPage(content, page, size, hasMore))
+                .result(ResponseSuccessCode.SUCCESS)
+                .status(HttpStatus.OK.value())
+                .build();
     }
 
     public DailyfeedPage<PostDto.Post> getPostsByDateRange(Long requestedMemberId, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable, String token, HttpServletResponse httpResponse) {
@@ -124,6 +213,10 @@ public class TimelineService {
         return timelinePullService.getRepliesByParent(member, commentId, pageable, token, httpResponse);
     }
 
+    /**
+     * PUSH : 팔로잉 멤버 수가 pushPullLimit 미만일 경우
+     * PULL : 팔로잉 멤버 수가 pushPullLimit 이상일 경우
+     */
     private PushPullPredicate checkPushOrPull(Long followingCount) {
         if(followingCount == null || followingCount <= 0){
             return PushPullPredicate.PUSH;
@@ -135,9 +228,9 @@ public class TimelineService {
         return  PushPullPredicate.PULL;
     }
 
-    private List<TimelineDto.TimelinePostActivity> mergeFeedsWithoutDuplicate(
-            List<TimelineDto.TimelinePostActivity> feed1,
-            List<TimelineDto.TimelinePostActivity> feed2,
+    private List<PostDto.Post> mergeFeedsWithoutDuplicate(
+            List<PostDto.Post> feed1,
+            List<PostDto.Post> feed2,
             int size
     ) {
         return Stream.concat(feed1.stream(), feed2.stream())

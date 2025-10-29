@@ -8,8 +8,6 @@ import click.dailyfeed.code.domain.content.post.exception.PostNotFoundException;
 import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.domain.member.member.exception.MemberNotFoundException;
-import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
-import click.dailyfeed.code.global.cache.RedisKeyConstant;
 import click.dailyfeed.code.global.web.page.DailyfeedPage;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.feign.domain.member.MemberFeignHelper;
@@ -28,11 +26,10 @@ import click.dailyfeed.timeline.domain.post.repository.jpa.PostRepository;
 import click.dailyfeed.timeline.domain.post.repository.mongo.PostLikeMongoAggregation;
 import click.dailyfeed.timeline.domain.post.repository.mongo.PostLikeMongoRepository;
 import click.dailyfeed.timeline.domain.timeline.mapper.TimelineMapper;
-import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostActivityRedisService;
+import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostsApiRedisService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -61,7 +58,7 @@ public class TimelinePullService {
 
     private final MemberActivityKafkaPublisher memberActivityKafkaPublisher;
     private final MemberFeignHelper memberFeignHelper;
-    private final TimelinePostActivityRedisService timelinePostActivityRedisService;
+    private final TimelinePostsApiRedisService timelinePostsApiRedisService;
 
     private final PageMapper pageMapper;
     private final TimelinePostMapper timelinePostMapper;
@@ -69,18 +66,16 @@ public class TimelinePullService {
     private final CommentLikeMongoRepository commentLikeMongoRepository;
 
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_GET_TIMELINE_ITEMS_DEFAULT, key="#memberId + '_' + #page + '_' + #size + '_' + #hours", unless = "#result.isEmpty()")
-    public List<TimelineDto.TimelinePostActivity> listMyFollowingActivities(Long memberId, int page, int size, int hours, String token, HttpServletResponse httpResponse) {
-        List<MemberProfileDto.Summary> followingMembers = fetchMyFollowingMembers(token, httpResponse); /// 여기서 MemberDto.Summary 또는 FollowDto.Following 으로 들고오면, 뒤에서 MemberMap API 로 구할 필요가 없다.
+    public List<PostDto.Post> listMyFollowingActivities(Long memberId, int page, int size, String token, HttpServletResponse httpResponse) {
+        List<MemberProfileDto.Summary> followingMembers = fetchMyFollowingMembers(token, httpResponse);
         Map<Long, MemberProfileDto.Summary> followingsMap = followingMembers.stream().collect(Collectors.toMap(s -> s.getMemberId(), s -> s));
 
         if (followingsMap.isEmpty()) {
             return List.of();
         }
 
+        /// DB 조회 (size개 조회 - hasNext는 상위에서 판단)
         Pageable pageable = PageRequest.of(page, size);
-
-        /// DB 조회
         List<Post> posts = postRepository.findPostsByAuthorIdInAndNotDeletedOrderByCreatedDateDesc(followingsMap.keySet(), pageable);
 
         /// 통계정보 추출, 병합
@@ -88,7 +83,7 @@ public class TimelinePullService {
                 .stream()
                 .map(p -> {
                     MemberProfileDto.Summary author = followingsMap.get(p.getAuthorId());
-                    return timelineMapper.toTimelinePostActivity(p, p.getLiked(),author);
+                    return timelineMapper.toPostDto(p, p.getLiked(),author);
                 })
                 .collect(Collectors.toList());
     }
@@ -97,25 +92,26 @@ public class TimelinePullService {
         return memberFeignHelper.getMyFollowingMembers(token, httpResponse);
     }
 
-    public List<TimelineDto.TimelinePostActivity> listHeavyMyFollowingActivities(MemberProfileDto.MemberProfile member, Pageable pageable, String token, HttpServletResponse httpServletResponse) {
-        final String key = "heavy_following_feed:" + member.getId() + ":" + pageable.getPageNumber() + ":" + pageable.getPageSize();
+    public List<PostDto.Post> listHeavyMyFollowingActivities(MemberProfileDto.MemberProfile member, int page, int size, String token, HttpServletResponse httpServletResponse) {
+        final String key = "heavy_following_feed:" + member.getId() + ":" + page + ":" + size;
 
-        List<TimelineDto.TimelinePostActivity> cached = timelinePostActivityRedisService.getList(key, pageable.getPageNumber(), pageable.getPageSize());
+        List<PostDto.Post> cached = timelinePostsApiRedisService.getList(key, page, size);
 
         if (cached != null && !cached.isEmpty()) {
             return cached;
         }
 
-        if (member.getFollowingsCount() < 10000){ // following 이 2000 명 이하면 일단은 그래도 캐시를 적용했으니 그냥 pull
-            return listMyFollowingActivities(member.getId(), pageable.getPageNumber(), pageable.getPageSize(), 24, token, httpServletResponse);
+        if (member.getFollowingsCount() < 10000){
+            return listMyFollowingActivities(member.getId(), page, size, token, httpServletResponse);
         }
-        else{ // 10000 명 이상이면 super heavy 로 판정 (팔로잉을 10000명 이상 한다는 것은 비정상 유저일수도 있고, 인플루언서의 인맥이 넓을 경우 등 일수도 있지만, 호날두는 605명... ㅋㅋ 😆😆)
+        else{
+            Pageable pageable = PageRequest.of(page, size);
             return listSuperHeavyFollowingActivities(member, pageable, token, httpServletResponse);
         }
     }
 
     // TODO (SEASON2)
-    private List<TimelineDto.TimelinePostActivity> listSuperHeavyFollowingActivities(
+    private List<PostDto.Post> listSuperHeavyFollowingActivities(
             MemberProfileDto.MemberProfile member,
             Pageable pageable,
             String token,
@@ -134,54 +130,48 @@ public class TimelinePullService {
         return null;
     }
 
-    // 댓글이 많은 게시글 목록
+    // 댓글이 많은 게시글 목록 (Slice 방식)
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_ORDER_BY_COMMENT_COUNT_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
-    public DailyfeedScrollPage<PostDto.Post> getPostsOrderByCommentCount(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        // 댓글 많은 순 데이터
+    public List<PostDto.Post> getPostsOrderByCommentCount(Long memberId, int page, int size, String token, HttpServletResponse httpResponse) {
+        // 댓글 많은 순 데이터 (size개 조회 - hasNext는 상위에서 판단)
+        Pageable pageable = PageRequest.of(page, size);
         List<PostCommentCountProjection> statisticResult = commentMongoAggregation.findTopPostsByCommentCount(pageable);
+
         // 글 post id 키값 추출
         Set<Long> postPks = statisticResult.stream().map(p -> p.getPostPk()).collect(Collectors.toSet());
 
         // postMap
         List<Post> posts = postRepository.findPostsByIdsInNotDeletedOrderByCreatedDateDesc(postPks);
-        Map<Long, PostDto.Post> postMap = withAuthorsAndStatistics(memberId, posts, token, httpResponse).stream().collect(Collectors.toMap(p -> p.getId(), p -> p));
+        Map<Long, PostDto.Post> postMap = withAuthorsAndStatistics(memberId, posts, token, httpResponse)
+                .stream()
+                .collect(Collectors.toMap(p -> p.getId(), p -> p));
 
         // 변환
-        List<PostDto.Post> result = statisticResult.stream()
+        return statisticResult.stream()
                 .map(projection -> {
                     PostDto.Post post = postMap.get(projection.getPostPk());
                     return timelineMapper.toPostDtoWithCountProjection(post, projection);
                 })
                 .collect(Collectors.toList());
-
-        return DailyfeedScrollPage.<PostDto.Post>builder()
-                .content(result)
-                .page(pageable.getPageNumber())
-                .size(pageable.getPageSize())
-                .build();
     }
 
-    // 인기 글 목록
+    // 인기 글 목록 (Slice 방식)
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_ORDER_BY_POPULAR_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
-    public DailyfeedScrollPage<PostDto.Post> getPopularPosts(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public List<PostDto.Post> getPopularPosts(Long requestedMemberId, int page, int size, String token, HttpServletResponse httpResponse) {
+        Pageable pageable = PageRequest.of(page, size);
         Slice<Post> slice = postRepository.findPopularPostsNotDeleted(pageable);
-        List<PostDto.Post> result = withAuthorsAndStatistics(requestedMemberId, slice.getContent(), token, httpResponse);
-        return pageMapper.fromJpaSliceToDailyfeedScrollPage(slice, result);
+        return withAuthorsAndStatistics(requestedMemberId, slice.getContent(), token, httpResponse);
     }
 
-    // 최근 활동이 있는 글 조회
+    // 최근 활동이 있는 글 조회 (Slice 방식)
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_RECENT_ACTIVITY_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
-    public DailyfeedScrollPage<PostDto.Post> getPostsByRecentActivities(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
+    public List<PostDto.Post> getPostsByRecentActivities(Long requestedMemberId, int page, int size, String token, HttpServletResponse httpResponse) {
+        Pageable pageable = PageRequest.of(page, size);
         Slice<Post> slice = postRepository.findPostsByRecentActivities(pageable);
-        List<PostDto.Post> result = withAuthorsAndStatistics(requestedMemberId, slice.getContent(), token, httpResponse);
-        return pageMapper.fromJpaSliceToDailyfeedScrollPage(slice, result);
+        return withAuthorsAndStatistics(requestedMemberId, slice.getContent(), token, httpResponse);
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_DATE_RANGE, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
     public DailyfeedPage<PostDto.Post> getPostsByDateRange(Long requestedMemberId, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable, String token, HttpServletResponse httpResponse) {
         Page<Post> page = postRepository.findByCreatedDateBetweenAndNotDeleted(startDate, endDate, pageable);
         List<PostDto.Post> result = withAuthorsAndStatistics(requestedMemberId, page.getContent(), token, httpResponse);
@@ -205,7 +195,6 @@ public class TimelinePullService {
         return mergeAuthorAndStatistics(posts, likedPostPks, authorsMap, statistics);
     }
 
-    @Cacheable(value = RedisKeyConstant.PostService.INTERNAL_LIST_GET_POST_LIST_BY_IDS_IN, keyGenerator = "postIdsKeyGenerator", cacheManager = "redisCacheManager")
     public List<PostDto.Post> getPostListByIdsIn(PostDto.PostsBulkRequest request, String token, HttpServletResponse httpResponse) {
         // Set이 비어있는 경우 빈 리스트 반환
         if (request.getIds() == null || request.getIds().isEmpty()) {
@@ -260,13 +249,13 @@ public class TimelinePullService {
                 .collect(Collectors.toList());
     }
 
-    public DailyfeedScrollPage<PostDto.Post> getMyPosts(MemberDto.Member requestedMember, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        Slice<Post> page = postRepository.findByAuthorIdAndNotDeleted(requestedMember.getId(), pageable);
-        List<PostDto.Post> posts = withAuthorsAndStatistics(requestedMember.getId(), page.getContent(), token, httpResponse);
-        return pageMapper.fromJpaSliceToDailyfeedScrollPage(page, posts);
+    @Transactional(readOnly = true)
+    public List<PostDto.Post> getMyPosts(MemberDto.Member requestedMember, int page, int size, String token, HttpServletResponse httpResponse) {
+        Pageable pageable = PageRequest.of(page, size);
+        Slice<Post> posts = postRepository.findByAuthorIdAndNotDeleted(requestedMember.getId(), pageable);
+        return withAuthorsAndStatistics(requestedMember.getId(), posts.getContent(), token, httpResponse);
     }
 
-    @Cacheable(value = RedisKeyConstant.PostService.WEB_GET_POST_BY_ID, key = "#postId", cacheManager = "redisCacheManager")
     public PostDto.Post getPostById(MemberDto.Member member, Long postId, String token, HttpServletResponse httpResponse) {
         Post post = postRepository.findByIdAndNotDeleted(postId)
                 .orElseThrow(PostNotFoundException::new);
@@ -317,7 +306,6 @@ public class TimelinePullService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_MEMBER_ID, key = "'memberId_'+#memberId+'_page_'+#page+'_size_'+#size")
     public DailyfeedScrollPage<CommentDto.Comment> getMyComments(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         // 1. 댓글 목록 조회
         Slice<Comment> comments = commentRepository.findByAuthorIdAndNotDeleted(memberId, pageable);
@@ -416,7 +404,6 @@ public class TimelinePullService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_MEMBER_ID, key = "'memberId_'+#memberId+'_page_'+#pageable.getPageNumber() +'_size_'+#pageable.getPageSize()")
     public DailyfeedScrollPage<CommentDto.Comment> getCommentsByUser(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         // 1. 댓글 목록 조회
         Slice<Comment> comments = commentRepository.findByAuthorIdAndNotDeleted(memberId, pageable);
@@ -453,7 +440,6 @@ public class TimelinePullService {
 
     // 댓글 상세 조회
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENT_BY_ID, key = "#commentId")
     public CommentDto.Comment getCommentById(Long memberId, Long commentId, String token, HttpServletResponse httpResponse) {
         // 댓글 정보 조회
         Comment comment = commentRepository.findByIdAndNotDeleted(commentId)
@@ -476,7 +462,6 @@ public class TimelinePullService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.CommentService.WEB_GET_COMMENTS_BY_PARENT_ID, key = "'parentId_'+#parentId+'_page_'+#page+'_size_'+#size")
     public DailyfeedScrollPage<CommentDto.Comment> getRepliesByParent(MemberProfileDto.Summary member, Long parentId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         Comment parentComment = commentRepository.findByIdAndNotDeleted(parentId)
                 .orElseThrow(ParentCommentNotFoundException::new);

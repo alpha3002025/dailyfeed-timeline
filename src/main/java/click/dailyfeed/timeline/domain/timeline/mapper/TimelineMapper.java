@@ -3,7 +3,6 @@ package click.dailyfeed.timeline.domain.timeline.mapper;
 import click.dailyfeed.code.domain.content.comment.dto.CommentDto;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
-import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.global.menu.MessageProperties;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.timeline.domain.comment.entity.Comment;
@@ -12,22 +11,22 @@ import click.dailyfeed.timeline.domain.post.entity.Post;
 import click.dailyfeed.timeline.domain.post.projection.PostLikeCountProjection;
 import org.mapstruct.Mapper;
 import org.mapstruct.ReportingPolicy;
-import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface TimelineMapper {
-    default <T> DailyfeedScrollPage<T> fromTimelineList(List<T> list, Pageable pageable) {
+    default <T> DailyfeedScrollPage<T> toScrollPage(List<T> list, int page, int size, boolean hasNext) {
         return DailyfeedScrollPage.<T>builder()
                 .content(list)
-                .page(pageable.getPageNumber())
-                .size(pageable.getPageSize())
+                .page(page)
+                .size(size)
+                .hasNext(hasNext)
                 .build();
     }
 
-    default TimelineDto.TimelinePostActivity toTimelinePostActivity(PostDto.Post p, Boolean liked, MemberProfileDto.Summary author) {
-        return TimelineDto.TimelinePostActivity
+    default PostDto.Post toPostDto(PostDto.Post p, Boolean liked, MemberProfileDto.Summary author) {
+        return PostDto.Post
                 .builder()
                 .likeCount(p.getLikeCount())
                 .commentCount(p.getCommentCount())
