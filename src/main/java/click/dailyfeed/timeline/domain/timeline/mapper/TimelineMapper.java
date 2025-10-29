@@ -11,21 +11,12 @@ import click.dailyfeed.timeline.domain.post.entity.Post;
 import click.dailyfeed.timeline.domain.post.projection.PostLikeCountProjection;
 import org.mapstruct.Mapper;
 import org.mapstruct.ReportingPolicy;
-import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface TimelineMapper {
-    default <T> DailyfeedScrollPage<T> fromTimelineList(List<T> list, Pageable pageable) {
-        return DailyfeedScrollPage.<T>builder()
-                .content(list)
-                .page(pageable.getPageNumber())
-                .size(pageable.getPageSize())
-                .build();
-    }
-
-    default <T> DailyfeedScrollPage<T> fromTimelineList(List<T> list, int page, int size, boolean hasNext) {
+    default <T> DailyfeedScrollPage<T> toScrollPage(List<T> list, int page, int size, boolean hasNext) {
         return DailyfeedScrollPage.<T>builder()
                 .content(list)
                 .page(page)

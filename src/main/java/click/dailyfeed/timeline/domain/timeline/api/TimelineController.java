@@ -49,14 +49,10 @@ public class TimelineController {
             @AuthenticatedMemberProfile MemberProfileDto.MemberProfile member,
             @RequestHeader("Authorization") String token,
             HttpServletResponse response,
-            @PageableDefault(size = 20, sort = "updatedAt") Pageable pageable
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
     ){
-        DailyfeedScrollPage<PostDto.Post> scrollPage = timelineService.getPostsOrderByCommentCount(member.getMemberId(), pageable, token, response);
-        return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
-                .data(scrollPage)
-                .result(ResponseSuccessCode.SUCCESS)
-                .status(HttpStatus.OK.value())
-                .build();
+        return timelineService.getPostsOrderByCommentCount(member.getMemberId(), page, size, token, response);
     }
 
     // 인기 게시글 조회
@@ -66,14 +62,10 @@ public class TimelineController {
             @AuthenticatedMemberProfileSummary MemberProfileDto.Summary member,
             @RequestHeader("Authorization") String token,
             HttpServletResponse httpResponse,
-            @PageableDefault(page = 0, size = 20) Pageable pageable) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
 
-        DailyfeedScrollPage<PostDto.Post> result = timelineService.getPopularPosts(member.getMemberId(), pageable, token, httpResponse);
-        return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
-                .status(HttpStatus.OK.value())
-                .result(ResponseSuccessCode.SUCCESS)
-                .data(result)
-                .build();
+        return timelineService.getPopularPosts(member.getMemberId(), page, size, token, httpResponse);
     }
 
     // 최근 활동이 있는 게시글 조회
@@ -83,14 +75,10 @@ public class TimelineController {
             @AuthenticatedMemberProfileSummary MemberProfileDto.Summary member,
             @RequestHeader("Authorization") String token,
             HttpServletResponse httpResponse,
-            @PageableDefault(page = 0, size = 20) Pageable pageable) {
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
 
-        DailyfeedScrollPage<PostDto.Post> result = timelineService.getPostsByRecentActivities(member.getMemberId(), pageable, token, httpResponse);
-        return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
-                .status(HttpStatus.OK.value())
-                .result(ResponseSuccessCode.SUCCESS)
-                .data(result)
-                .build();
+        return timelineService.getPostsByRecentActivities(member.getMemberId(), page, size, token, httpResponse);
     }
 
     /// my posts
@@ -100,19 +88,10 @@ public class TimelineController {
             @AuthenticatedMember MemberDto.Member member,
             HttpServletResponse httpResponse,
             @RequestHeader("Authorization") String token,
-            @PageableDefault(
-                    page = 0,
-                    size = 10,
-                    sort = "createdAt",
-                    direction = Sort.Direction.DESC
-            ) Pageable pageable
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        DailyfeedScrollPage<PostDto.Post> result = timelineService.getMyPosts(member, pageable, token, httpResponse);
-        return DailyfeedScrollResponse.<DailyfeedScrollPage<PostDto.Post>>builder()
-                .status(HttpStatus.OK.value())
-                .result(ResponseSuccessCode.SUCCESS)
-                .data(result)
-                .build();
+        return timelineService.getMyPosts(member, page, size, token, httpResponse);
     }
 
     // 게시글 상세 조회
