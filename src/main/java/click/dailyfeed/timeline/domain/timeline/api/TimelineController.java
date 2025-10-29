@@ -35,11 +35,11 @@ public class TimelineController {
     private final TimelineService timelineService;
 
     @GetMapping("/posts/followings")
-    public DailyfeedServerResponse<DailyfeedScrollPage<TimelineDto.TimelinePostActivity>> getMyFollowingMembersTimeline(
+    public DailyfeedScrollResponse<DailyfeedScrollPage<PostDto.Post>> getMyFollowingMembersTimeline(
             @AuthenticatedMemberProfile MemberProfileDto.MemberProfile memberProfile,
             @RequestHeader("Authorization") String token,
             HttpServletResponse response,
-            @PageableDefault(size = 20, sort = "updatedAt") Pageable pageable
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
     ){
         return timelineService.getMyFollowingMembersTimeline(memberProfile, pageable, token, response);
     }

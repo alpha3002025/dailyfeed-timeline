@@ -3,7 +3,6 @@ package click.dailyfeed.timeline.domain.timeline.mapper;
 import click.dailyfeed.code.domain.content.comment.dto.CommentDto;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
-import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.global.menu.MessageProperties;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
 import click.dailyfeed.timeline.domain.comment.entity.Comment;
@@ -26,8 +25,8 @@ public interface TimelineMapper {
                 .build();
     }
 
-    default TimelineDto.TimelinePostActivity toTimelinePostActivity(PostDto.Post p, Boolean liked, MemberProfileDto.Summary author) {
-        return TimelineDto.TimelinePostActivity
+    default PostDto.Post toPostDto(PostDto.Post p, Boolean liked, MemberProfileDto.Summary author) {
+        return PostDto.Post
                 .builder()
                 .likeCount(p.getLikeCount())
                 .commentCount(p.getCommentCount())

@@ -8,7 +8,6 @@ import click.dailyfeed.code.domain.content.post.exception.PostNotFoundException;
 import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
 import click.dailyfeed.code.domain.member.member.exception.MemberNotFoundException;
-import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.global.cache.RedisKeyConstant;
 import click.dailyfeed.code.global.web.page.DailyfeedPage;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
@@ -28,7 +27,7 @@ import click.dailyfeed.timeline.domain.post.repository.jpa.PostRepository;
 import click.dailyfeed.timeline.domain.post.repository.mongo.PostLikeMongoAggregation;
 import click.dailyfeed.timeline.domain.post.repository.mongo.PostLikeMongoRepository;
 import click.dailyfeed.timeline.domain.timeline.mapper.TimelineMapper;
-import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostActivityRedisService;
+import click.dailyfeed.timeline.domain.timeline.redis.TimelinePostsApiRedisService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,7 +60,7 @@ public class TimelinePullService {
 
     private final MemberActivityKafkaPublisher memberActivityKafkaPublisher;
     private final MemberFeignHelper memberFeignHelper;
-    private final TimelinePostActivityRedisService timelinePostActivityRedisService;
+    private final TimelinePostsApiRedisService timelinePostsApiRedisService;
 
     private final PageMapper pageMapper;
     private final TimelinePostMapper timelinePostMapper;
@@ -69,16 +68,13 @@ public class TimelinePullService {
     private final CommentLikeMongoRepository commentLikeMongoRepository;
 
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_GET_TIMELINE_ITEMS_DEFAULT, key="#memberId + '_' + #page + '_' + #size + '_' + #hours", unless = "#result.isEmpty()")
-    public List<TimelineDto.TimelinePostActivity> listMyFollowingActivities(Long memberId, int page, int size, int hours, String token, HttpServletResponse httpResponse) {
+    public List<PostDto.Post> listMyFollowingActivities(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         List<MemberProfileDto.Summary> followingMembers = fetchMyFollowingMembers(token, httpResponse); /// 여기서 MemberDto.Summary 또는 FollowDto.Following 으로 들고오면, 뒤에서 MemberMap API 로 구할 필요가 없다.
         Map<Long, MemberProfileDto.Summary> followingsMap = followingMembers.stream().collect(Collectors.toMap(s -> s.getMemberId(), s -> s));
 
         if (followingsMap.isEmpty()) {
             return List.of();
         }
-
-        Pageable pageable = PageRequest.of(page, size);
 
         /// DB 조회
         List<Post> posts = postRepository.findPostsByAuthorIdInAndNotDeletedOrderByCreatedDateDesc(followingsMap.keySet(), pageable);
@@ -88,7 +84,7 @@ public class TimelinePullService {
                 .stream()
                 .map(p -> {
                     MemberProfileDto.Summary author = followingsMap.get(p.getAuthorId());
-                    return timelineMapper.toTimelinePostActivity(p, p.getLiked(),author);
+                    return timelineMapper.toPostDto(p, p.getLiked(),author);
                 })
                 .collect(Collectors.toList());
     }
@@ -97,10 +93,10 @@ public class TimelinePullService {
         return memberFeignHelper.getMyFollowingMembers(token, httpResponse);
     }
 
-    public List<TimelineDto.TimelinePostActivity> listHeavyMyFollowingActivities(MemberProfileDto.MemberProfile member, Pageable pageable, String token, HttpServletResponse httpServletResponse) {
+    public List<PostDto.Post> listHeavyMyFollowingActivities(MemberProfileDto.MemberProfile member, Pageable pageable, String token, HttpServletResponse httpServletResponse) {
         final String key = "heavy_following_feed:" + member.getId() + ":" + pageable.getPageNumber() + ":" + pageable.getPageSize();
 
-        List<TimelineDto.TimelinePostActivity> cached = timelinePostActivityRedisService.getList(key, pageable.getPageNumber(), pageable.getPageSize());
+        List<PostDto.Post> cached = timelinePostsApiRedisService.getList(key, pageable.getPageNumber(), pageable.getPageSize());
 
         if (cached != null && !cached.isEmpty()) {
             return cached;
@@ -115,7 +111,7 @@ public class TimelinePullService {
     }
 
     // TODO (SEASON2)
-    private List<TimelineDto.TimelinePostActivity> listSuperHeavyFollowingActivities(
+    private List<PostDto.Post> listSuperHeavyFollowingActivities(
             MemberProfileDto.MemberProfile member,
             Pageable pageable,
             String token,
