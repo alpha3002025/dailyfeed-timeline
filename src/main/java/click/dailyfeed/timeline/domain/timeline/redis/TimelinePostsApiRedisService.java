@@ -3,7 +3,6 @@ package click.dailyfeed.timeline.domain.timeline.redis;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
@@ -18,11 +17,11 @@ public class TimelinePostsApiRedisService {
     @Qualifier("postDtoPostRedisTemplate")
     private final RedisTemplate<String, PostDto.Post> redisTemplate;
 
-    public List<PostDto.Post> topN(String redisKey, Pageable pageable) {
+    public List<PostDto.Post> topN(String redisKey, int page, int size) {
         ZSetOperations<String, PostDto.Post> zSetOperations = redisTemplate.opsForZSet();
 
-        long start = (long) pageable.getPageNumber() * pageable.getPageSize();
-        long end = start + pageable.getPageSize() - 1;
+        long start = (long) page * size;
+        long end = start + size - 1;
 
         Set<PostDto.Post> topN = zSetOperations.reverseRange(redisKey, start, end);
 

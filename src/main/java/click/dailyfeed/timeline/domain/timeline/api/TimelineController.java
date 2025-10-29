@@ -4,7 +4,6 @@ import click.dailyfeed.code.domain.content.comment.dto.CommentDto;
 import click.dailyfeed.code.domain.content.post.dto.PostDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberDto;
 import click.dailyfeed.code.domain.member.member.dto.MemberProfileDto;
-import click.dailyfeed.code.domain.timeline.timeline.dto.TimelineDto;
 import click.dailyfeed.code.global.web.code.ResponseSuccessCode;
 import click.dailyfeed.code.global.web.page.DailyfeedPage;
 import click.dailyfeed.code.global.web.page.DailyfeedScrollPage;
@@ -39,9 +38,10 @@ public class TimelineController {
             @AuthenticatedMemberProfile MemberProfileDto.MemberProfile memberProfile,
             @RequestHeader("Authorization") String token,
             HttpServletResponse response,
-            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
     ){
-        return timelineService.getMyFollowingMembersTimeline(memberProfile, pageable, token, response);
+        return timelineService.getMyFollowingMembersTimeline(memberProfile, page, size, token, response);
     }
 
     @GetMapping("/posts/most-commented")

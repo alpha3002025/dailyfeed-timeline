@@ -25,6 +25,15 @@ public interface TimelineMapper {
                 .build();
     }
 
+    default <T> DailyfeedScrollPage<T> fromTimelineList(List<T> list, int page, int size, boolean hasNext) {
+        return DailyfeedScrollPage.<T>builder()
+                .content(list)
+                .page(page)
+                .size(size)
+                .hasNext(hasNext)
+                .build();
+    }
+
     default PostDto.Post toPostDto(PostDto.Post p, Boolean liked, MemberProfileDto.Summary author) {
         return PostDto.Post
                 .builder()

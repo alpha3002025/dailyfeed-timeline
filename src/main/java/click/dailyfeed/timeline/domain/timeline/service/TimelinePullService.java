@@ -68,15 +68,16 @@ public class TimelinePullService {
     private final CommentLikeMongoRepository commentLikeMongoRepository;
 
     @Transactional(readOnly = true)
-    public List<PostDto.Post> listMyFollowingActivities(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
-        List<MemberProfileDto.Summary> followingMembers = fetchMyFollowingMembers(token, httpResponse); /// 여기서 MemberDto.Summary 또는 FollowDto.Following 으로 들고오면, 뒤에서 MemberMap API 로 구할 필요가 없다.
+    public List<PostDto.Post> listMyFollowingActivities(Long memberId, int page, int size, String token, HttpServletResponse httpResponse) {
+        List<MemberProfileDto.Summary> followingMembers = fetchMyFollowingMembers(token, httpResponse);
         Map<Long, MemberProfileDto.Summary> followingsMap = followingMembers.stream().collect(Collectors.toMap(s -> s.getMemberId(), s -> s));
 
         if (followingsMap.isEmpty()) {
             return List.of();
         }
 
-        /// DB 조회
+        /// DB 조회 (size개 조회 - hasNext는 상위에서 판단)
+        Pageable pageable = PageRequest.of(page, size);
         List<Post> posts = postRepository.findPostsByAuthorIdInAndNotDeletedOrderByCreatedDateDesc(followingsMap.keySet(), pageable);
 
         /// 통계정보 추출, 병합
@@ -93,19 +94,20 @@ public class TimelinePullService {
         return memberFeignHelper.getMyFollowingMembers(token, httpResponse);
     }
 
-    public List<PostDto.Post> listHeavyMyFollowingActivities(MemberProfileDto.MemberProfile member, Pageable pageable, String token, HttpServletResponse httpServletResponse) {
-        final String key = "heavy_following_feed:" + member.getId() + ":" + pageable.getPageNumber() + ":" + pageable.getPageSize();
+    public List<PostDto.Post> listHeavyMyFollowingActivities(MemberProfileDto.MemberProfile member, int page, int size, String token, HttpServletResponse httpServletResponse) {
+        final String key = "heavy_following_feed:" + member.getId() + ":" + page + ":" + size;
 
-        List<PostDto.Post> cached = timelinePostsApiRedisService.getList(key, pageable.getPageNumber(), pageable.getPageSize());
+        List<PostDto.Post> cached = timelinePostsApiRedisService.getList(key, page, size);
 
         if (cached != null && !cached.isEmpty()) {
             return cached;
         }
 
-        if (member.getFollowingsCount() < 10000){ // following 이 2000 명 이하면 일단은 그래도 캐시를 적용했으니 그냥 pull
-            return listMyFollowingActivities(member.getId(), pageable, token, httpServletResponse);
+        if (member.getFollowingsCount() < 10000){
+            return listMyFollowingActivities(member.getId(), page, size, token, httpServletResponse);
         }
-        else{ // 10000 명 이상이면 super heavy 로 판정 (팔로잉을 10000명 이상 한다는 것은 비정상 유저일수도 있고, 인플루언서의 인맥이 넓을 경우 등 일수도 있지만, 호날두는 605명... ㅋㅋ 😆😆)
+        else{
+            Pageable pageable = PageRequest.of(page, size);
             return listSuperHeavyFollowingActivities(member, pageable, token, httpServletResponse);
         }
     }
@@ -132,7 +134,6 @@ public class TimelinePullService {
 
     // 댓글이 많은 게시글 목록
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_ORDER_BY_COMMENT_COUNT_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
     public DailyfeedScrollPage<PostDto.Post> getPostsOrderByCommentCount(Long memberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         // 댓글 많은 순 데이터
         List<PostCommentCountProjection> statisticResult = commentMongoAggregation.findTopPostsByCommentCount(pageable);
@@ -160,7 +161,6 @@ public class TimelinePullService {
 
     // 인기 글 목록
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_ORDER_BY_POPULAR_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
     public DailyfeedScrollPage<PostDto.Post> getPopularPosts(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         Slice<Post> slice = postRepository.findPopularPostsNotDeleted(pageable);
         List<PostDto.Post> result = withAuthorsAndStatistics(requestedMemberId, slice.getContent(), token, httpResponse);
@@ -169,7 +169,6 @@ public class TimelinePullService {
 
     // 최근 활동이 있는 글 조회
     @Transactional(readOnly = true)
-    @Cacheable(value = RedisKeyConstant.TimelinePullService.WEB_SEARCH_TIMELINE_RECENT_ACTIVITY_DESC, key = "'__page:'+#page+'_size:'+#size", cacheManager = "redisCacheManager")
     public DailyfeedScrollPage<PostDto.Post> getPostsByRecentActivities(Long requestedMemberId, Pageable pageable, String token, HttpServletResponse httpResponse) {
         Slice<Post> slice = postRepository.findPostsByRecentActivities(pageable);
         List<PostDto.Post> result = withAuthorsAndStatistics(requestedMemberId, slice.getContent(), token, httpResponse);
