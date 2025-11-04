@@ -122,6 +122,11 @@ dailyfeed:
       push-pull:
         limit: 1000
     content:
+      feign:
+        url: ${CONTENT_SERVICE_URL:http://localhost:8081}
+        timeout:
+          connect: 5000
+          read: 10000
       comment:
         max-depth: 2    # 댓글 최대 깊이
         page-size: 20   # 기본 페이지 크기
