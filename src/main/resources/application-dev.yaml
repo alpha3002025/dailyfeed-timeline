@@ -137,6 +137,12 @@ dailyfeed:
         timeout:
           connect: 5000
           read: 10000
+    image:
+      feign:
+        url: ${IMAGE_SERVICE_URL:http://localhost:8085}
+        timeout:
+          connect: 5000
+          read: 10000
 
 infrastructure:
   mongodb:
